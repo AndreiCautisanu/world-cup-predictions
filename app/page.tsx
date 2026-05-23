@@ -23,7 +23,7 @@ export default function Home() {
             Cupa Mondiala 2026
           </h2>
           <p className="text-zinc-400 text-lg leading-relaxed">
-            Pronosticuri, clasament live, și glorie eternă.
+            Pronosticuri și clasament live.
           </p>
           <p className="text-zinc-600 text-sm">
             În curând — doar pentru voi.
