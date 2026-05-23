@@ -26,7 +26,7 @@ export default function Home() {
             Pronosticuri și clasament live.
           </p>
           <p className="text-zinc-600 text-sm">
-            În curând — doar pentru voi.
+            În curând.
           </p>
         </div>
 
