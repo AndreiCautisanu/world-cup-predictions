@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:bootstrap": "tsx prisma/bootstrap-fd.ts",
     "db:reset": "prisma migrate reset"
   },
   "prisma": {
