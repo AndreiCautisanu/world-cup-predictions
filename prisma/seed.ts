@@ -1,8 +1,12 @@
 import { PrismaClient, Round } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { TEAMS } from "./data/teams";
 import { GROUP_FIXTURE_TEMPLATE, MATCHDAY_DATES, KNOCKOUT_SLOTS } from "./data/fixtures";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_URL is not set");
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   // 1. Groups A–L
