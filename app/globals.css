@@ -5,9 +5,25 @@
   --color-surface: #0f172a;
   --color-border: #1e293b;
   --color-accent: #22c55e;
-  --font-sans: system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-display), "Bebas Neue", "Impact", sans-serif;
+}
+
+html,
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
 }
 
 body {
-  font-family: var(--font-sans);
+  background-image:
+    radial-gradient(circle at 10% -10%, rgba(16, 185, 129, 0.08), transparent 45%),
+    radial-gradient(circle at 95% 0%, rgba(244, 114, 182, 0.05), transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(59, 130, 246, 0.05), transparent 45%);
+  background-attachment: fixed;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
 }
