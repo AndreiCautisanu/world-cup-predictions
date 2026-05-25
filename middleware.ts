@@ -12,6 +12,7 @@ export default auth((req) => {
     nextUrl.pathname === "/" ||
     nextUrl.pathname === "/login" ||
     nextUrl.pathname === "/register" ||
+    nextUrl.pathname === "/api/health" ||
     nextUrl.pathname.startsWith("/api/auth") ||
     nextUrl.pathname.startsWith("/api/register");
 
