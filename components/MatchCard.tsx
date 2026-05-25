@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CountdownLock } from "./CountdownLock";
 import { isKnockoutRound } from "@/lib/predictions";
 
@@ -22,6 +22,11 @@ type Props = {
   isLocked: boolean;
 };
 
+export const DIRTY_EVENT = "pronosticuri:dirty";
+export const SAVE_ALL_EVENT = "pronosticuri:save-all";
+
+export type DirtyEventDetail = { matchId: number; isDirty: boolean };
+
 const KICKOFF_FORMATTER = new Intl.DateTimeFormat("ro-RO", {
   weekday: "short",
   day: "numeric",
@@ -38,24 +43,47 @@ function clampScore(value: number): number {
 export function MatchCard(props: Props) {
   const isKnockout = isKnockoutRound(props.round);
   const isPlaceholder = !props.homeTeam || !props.awayTeam;
+  const hasInitial = props.initialHome !== null && props.initialHome !== undefined;
 
-  const [home, setHome] = useState<number>(props.initialHome ?? 0);
-  const [away, setAway] = useState<number>(props.initialAway ?? 0);
-  const [predictsEt, setPredictsEt] = useState<boolean>(props.initialPredictsEt ?? false);
-  const [predictsPens, setPredictsPens] = useState<boolean>(props.initialPredictsPens ?? false);
+  const initialHome = props.initialHome ?? 0;
+  const initialAway = props.initialAway ?? 0;
+  const initialEt = props.initialPredictsEt ?? false;
+  const initialPens = props.initialPredictsPens ?? false;
+
+  const [home, setHome] = useState<number>(initialHome);
+  const [away, setAway] = useState<number>(initialAway);
+  const [predictsEt, setPredictsEt] = useState<boolean>(initialEt);
+  const [predictsPens, setPredictsPens] = useState<boolean>(initialPens);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
 
-  const hasInitial = props.initialHome !== null && props.initialHome !== undefined;
+  const isDirty = useMemo(() => {
+    if (home !== initialHome || away !== initialAway) return true;
+    if (!isKnockout) return false;
+    return predictsEt !== initialEt || predictsPens !== initialPens;
+  }, [home, away, predictsEt, predictsPens, initialHome, initialAway, initialEt, initialPens, isKnockout]);
 
+  // Auto-clear the "Salvat ✓" pill after a moment
   useEffect(() => {
     if (status !== "saved") return;
     const t = setTimeout(() => setStatus("idle"), 2500);
     return () => clearTimeout(t);
   }, [status]);
 
-  async function save() {
+  // Dispatch dirty state for the parent toolbar to count
+  useEffect(() => {
+    if (props.isLocked || isPlaceholder) return;
+    const ev = new CustomEvent<DirtyEventDetail>(DIRTY_EVENT, {
+      detail: { matchId: props.matchId, isDirty },
+    });
+    window.dispatchEvent(ev);
+  }, [isDirty, props.matchId, props.isLocked, isPlaceholder]);
+
+  const saveRef = useRef<() => Promise<void>>(async () => {});
+
+  const save = useCallback(async () => {
     if (saving) return;
+    if (!isDirty && hasInitial) return; // nothing to do
     setSaving(true);
     setStatus("idle");
     const body: Record<string, unknown> = {
@@ -79,26 +107,56 @@ export function MatchCard(props: Props) {
     } finally {
       setSaving(false);
     }
-  }
+  }, [saving, isDirty, hasInitial, props.matchId, home, away, predictsEt, predictsPens, isKnockout]);
+
+  // Keep a stable ref so the event listener always calls the latest save()
+  saveRef.current = save;
+
+  // Listen for "save all" broadcast
+  useEffect(() => {
+    if (props.isLocked || isPlaceholder) return;
+    const handler = () => {
+      if (saveRef.current) void saveRef.current();
+    };
+    window.addEventListener(SAVE_ALL_EVENT, handler);
+    return () => window.removeEventListener(SAVE_ALL_EVENT, handler);
+  }, [props.isLocked, isPlaceholder]);
+
+  // Visual state for the card chrome
+  const chrome = (() => {
+    if (props.isLocked) return "border-slate-800/80 opacity-80";
+    if (isDirty && hasInitial) return "border-amber-400/40 ring-1 ring-amber-400/10";
+    if (isDirty && !hasInitial) return "border-slate-700 hover:border-slate-600";
+    if (hasInitial) return "border-emerald-500/40 ring-1 ring-emerald-500/15";
+    return "border-slate-800 hover:border-slate-700";
+  })();
+
+  const buttonLabel = (() => {
+    if (saving) return "Se salvează…";
+    if (status === "saved") return "Salvat ✓";
+    if (status === "error") return "Reîncearcă";
+    if (hasInitial && isDirty) return "Actualizează";
+    if (hasInitial && !isDirty) return "Salvat ✓";
+    return "Salvează";
+  })();
+
+  const buttonDisabled = saving || (!isDirty && hasInitial && status === "idle");
 
   return (
     <article
-      className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-950 shadow-lg shadow-black/20 backdrop-blur transition ${
-        props.isLocked
-          ? "border-slate-800/80 opacity-80"
-          : hasInitial
-            ? "border-emerald-500/30 ring-1 ring-emerald-500/10"
-            : "border-slate-800 hover:border-slate-700"
-      }`}
+      data-match-id={props.matchId}
+      className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-950 shadow-lg shadow-black/20 backdrop-blur transition ${chrome}`}
     >
       <span
         aria-hidden
         className={`absolute inset-y-0 left-0 w-[3px] ${
           props.isLocked
             ? "bg-slate-700"
-            : isKnockout
-              ? "bg-gradient-to-b from-amber-400 via-amber-500 to-rose-500"
-              : "bg-gradient-to-b from-emerald-400 to-emerald-600"
+            : isDirty && hasInitial
+              ? "bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500"
+              : isKnockout
+                ? "bg-gradient-to-b from-amber-400 via-amber-500 to-rose-500"
+                : "bg-gradient-to-b from-emerald-400 to-emerald-600"
         }`}
       />
 
@@ -113,7 +171,15 @@ export function MatchCard(props: Props) {
             {KICKOFF_FORMATTER.format(new Date(props.kickoffTime))}
           </span>
         </div>
-        <CountdownLock kickoff={new Date(props.kickoffTime)} />
+        <div className="flex items-center gap-1.5">
+          {hasInitial && !isDirty && !props.isLocked && (
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" aria-label="salvat" />
+          )}
+          {hasInitial && isDirty && !props.isLocked && (
+            <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" aria-label="modificat" />
+          )}
+          <CountdownLock kickoff={new Date(props.kickoffTime)} />
+        </div>
       </header>
 
       {isPlaceholder ? (
@@ -142,37 +208,31 @@ export function MatchCard(props: Props) {
 
           {isKnockout && !props.isLocked && (
             <div className="mt-3 flex items-center justify-center gap-4 text-xs text-slate-400">
-              <Toggle
-                label="Prelungiri"
-                checked={predictsEt}
-                onChange={setPredictsEt}
-              />
-              <Toggle
-                label="Penalty-uri"
-                checked={predictsPens}
-                onChange={setPredictsPens}
-              />
+              <Toggle label="Prelungiri" checked={predictsEt} onChange={setPredictsEt} />
+              <Toggle label="Penalty-uri" checked={predictsPens} onChange={setPredictsPens} />
             </div>
           )}
 
           {!props.isLocked && (
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                {hasInitial ? "Pronostic salvat" : "Nesalvat"}
+                {hasInitial
+                  ? isDirty
+                    ? "Modificări nesalvate"
+                    : "Pronostic salvat"
+                  : "Niciun pronostic încă"}
               </span>
               <button
                 type="button"
-                onClick={save}
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-1.5 text-sm font-semibold text-emerald-950 shadow-[0_0_0_1px_rgba(16,185,129,0.4)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => void save()}
+                disabled={buttonDisabled}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold shadow-[0_0_0_1px_rgba(16,185,129,0.4)] transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  hasInitial && isDirty
+                    ? "bg-amber-400 text-amber-950 shadow-[0_0_0_1px_rgba(251,191,36,0.45)] hover:bg-amber-300"
+                    : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400"
+                }`}
               >
-                {saving
-                  ? "Se salvează…"
-                  : status === "saved"
-                    ? "Salvat ✓"
-                    : status === "error"
-                      ? "Reîncearcă"
-                      : "Salvează"}
+                {buttonLabel}
               </button>
             </div>
           )}
@@ -190,9 +250,7 @@ export function MatchCard(props: Props) {
 
 function TeamSide({ team, align }: { team: Team; align: "left" | "right" }) {
   return (
-    <div
-      className={`flex min-w-0 items-center gap-2.5 ${align === "right" ? "justify-end" : "justify-start"}`}
-    >
+    <div className={`flex min-w-0 items-center gap-2.5 ${align === "right" ? "justify-end" : "justify-start"}`}>
       {align === "right" && <TeamName name={team.name} />}
       <span className="text-3xl leading-none drop-shadow" aria-hidden>
         {team.flagEmoji}
@@ -255,8 +313,9 @@ function ScoreInput({
       value={value}
       disabled={disabled}
       aria-label={ariaLabel}
+      onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="font-display h-12 w-12 rounded-lg border border-slate-700 bg-slate-950/70 text-center text-2xl font-bold text-slate-50 tabular-nums shadow-inner outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-60"
+      className="score-input font-display h-12 w-12 rounded-lg border border-slate-700 bg-slate-950/70 text-center text-2xl font-bold text-slate-50 tabular-nums shadow-inner outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-60"
     />
   );
 }
@@ -300,9 +359,9 @@ function roundLabel(round: string): string {
     case "GROUP_3":
       return "Etapa 3";
     case "R32":
-      return "Optimi 1";
+      return "Șaisprezecimi";
     case "R16":
-      return "Optimi 2";
+      return "Optimi";
     case "QF":
       return "Sferturi";
     case "SF":
