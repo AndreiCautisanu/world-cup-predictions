@@ -66,21 +66,29 @@ async function main() {
     }
   }
 
-  // 4. Knockout slot placeholders (idempotent: skip if any knockout match exists)
-  const existingKnockout = await prisma.match.count({ where: { groupId: null } });
-  if (existingKnockout === 0) {
-    for (const slot of KNOCKOUT_SLOTS) {
+  // 4. Knockout slot placeholders (idempotent per round)
+  const existingRounds = new Set(
+    (await prisma.match.findMany({ where: { groupId: null }, select: { round: true } })).map(
+      (m) => m.round,
+    ),
+  );
+  for (const slot of KNOCKOUT_SLOTS) {
+    if (existingRounds.has(slot.round as Round)) {
+      continue; // round already has slots
+    }
+    existingRounds.add(slot.round as Round); // mark so we don't re-check within this run
+    const slotsForRound = KNOCKOUT_SLOTS.filter((s) => s.round === slot.round);
+    for (const s of slotsForRound) {
       await prisma.match.create({
         data: {
-          round: slot.round as Round,
-          kickoffTime: new Date(slot.kickoffTime),
-          slotDescription: slot.slotDescription,
+          round: s.round as Round,
+          kickoffTime: new Date(s.kickoffTime),
+          slotDescription: s.slotDescription,
           status: "SCHEDULED",
         },
       });
     }
-  } else {
-    console.log("Skipping knockout slots — already seeded");
+    console.log(`Seeded ${slotsForRound.length} slots for round ${slot.round}`);
   }
 
   // 5. Initial invite code
