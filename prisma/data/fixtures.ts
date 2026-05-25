@@ -26,12 +26,17 @@ export type KnockoutSlot = {
 };
 
 export const KNOCKOUT_SLOTS: KnockoutSlot[] = [
-  // Round of 32 — 16 matches
-  ...Array.from({ length: 16 }, (_, i) => ({
-    round: "R32" as const,
-    slotDescription: `R32 Meciul ${i + 1}`,
-    kickoffTime: `2026-06-${28 + Math.floor(i / 4)}T18:00:00Z`,
-  })),
+  // Round of 32 — 16 matches (4 per day: Jun 28, Jun 29, Jun 30, Jul 01)
+  ...Array.from({ length: 16 }, (_, i) => {
+    const dayOffset = Math.floor(i / 4); // 0–3
+    const date = new Date("2026-06-28T18:00:00Z");
+    date.setUTCDate(date.getUTCDate() + dayOffset);
+    return {
+      round: "R32" as const,
+      slotDescription: `R32 Meciul ${i + 1}`,
+      kickoffTime: date.toISOString().replace(".000Z", "Z"),
+    };
+  }),
   // Round of 16 — 8 matches
   ...Array.from({ length: 8 }, (_, i) => ({
     round: "R16" as const,
@@ -42,7 +47,7 @@ export const KNOCKOUT_SLOTS: KnockoutSlot[] = [
   ...Array.from({ length: 4 }, (_, i) => ({
     round: "QF" as const,
     slotDescription: `Sferturi Meciul ${i + 1}`,
-    kickoffTime: `2026-07-${9 + i}T18:00:00Z`,
+    kickoffTime: `2026-07-${String(9 + i).padStart(2, "0")}T18:00:00Z`,
   })),
   // Semifinals — 2 matches
   ...Array.from({ length: 2 }, (_, i) => ({
