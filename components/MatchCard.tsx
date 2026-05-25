@@ -40,35 +40,39 @@ function clampScore(value: number): number {
   return Math.max(0, Math.min(20, Math.floor(value)));
 }
 
+type SavedSnapshot = { home: number; away: number; et: boolean; pens: boolean };
+
 export function MatchCard(props: Props) {
   const isKnockout = isKnockoutRound(props.round);
   const isPlaceholder = !props.homeTeam || !props.awayTeam;
-  const hasInitial = props.initialHome !== null && props.initialHome !== undefined;
 
-  const initialHome = props.initialHome ?? 0;
-  const initialAway = props.initialAway ?? 0;
-  const initialEt = props.initialPredictsEt ?? false;
-  const initialPens = props.initialPredictsPens ?? false;
+  const initialSnapshot = useMemo<SavedSnapshot | null>(() => {
+    if (props.initialHome === null || props.initialHome === undefined) return null;
+    return {
+      home: props.initialHome,
+      away: props.initialAway ?? 0,
+      et: props.initialPredictsEt ?? false,
+      pens: props.initialPredictsPens ?? false,
+    };
+  }, [props.initialHome, props.initialAway, props.initialPredictsEt, props.initialPredictsPens]);
 
-  const [home, setHome] = useState<number>(initialHome);
-  const [away, setAway] = useState<number>(initialAway);
-  const [predictsEt, setPredictsEt] = useState<boolean>(initialEt);
-  const [predictsPens, setPredictsPens] = useState<boolean>(initialPens);
+  const [home, setHome] = useState<number>(initialSnapshot?.home ?? 0);
+  const [away, setAway] = useState<number>(initialSnapshot?.away ?? 0);
+  const [predictsEt, setPredictsEt] = useState<boolean>(initialSnapshot?.et ?? false);
+  const [predictsPens, setPredictsPens] = useState<boolean>(initialSnapshot?.pens ?? false);
+  const [lastSaved, setLastSaved] = useState<SavedSnapshot | null>(initialSnapshot);
+  const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
 
-  const isDirty = useMemo(() => {
-    if (home !== initialHome || away !== initialAway) return true;
-    if (!isKnockout) return false;
-    return predictsEt !== initialEt || predictsPens !== initialPens;
-  }, [home, away, predictsEt, predictsPens, initialHome, initialAway, initialEt, initialPens, isKnockout]);
+  const hasSavedEver = lastSaved !== null;
 
-  // Auto-clear the "Salvat ✓" pill after a moment
-  useEffect(() => {
-    if (status !== "saved") return;
-    const t = setTimeout(() => setStatus("idle"), 2500);
-    return () => clearTimeout(t);
-  }, [status]);
+  const isDirty = useMemo(() => {
+    if (lastSaved === null) return touched;
+    if (home !== lastSaved.home || away !== lastSaved.away) return true;
+    if (!isKnockout) return false;
+    return predictsEt !== lastSaved.et || predictsPens !== lastSaved.pens;
+  }, [home, away, predictsEt, predictsPens, lastSaved, touched, isKnockout]);
 
   // Dispatch dirty state for the parent toolbar to count
   useEffect(() => {
@@ -83,7 +87,7 @@ export function MatchCard(props: Props) {
 
   const save = useCallback(async () => {
     if (saving) return;
-    if (!isDirty && hasInitial) return; // nothing to do
+    if (!isDirty) return; // nothing to do
     setSaving(true);
     setStatus("idle");
     const body: Record<string, unknown> = {
@@ -101,13 +105,19 @@ export function MatchCard(props: Props) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      setStatus(res.ok ? "saved" : "error");
+      if (res.ok) {
+        setLastSaved({ home, away, et: predictsEt, pens: predictsPens });
+        setTouched(false);
+        setStatus("saved");
+      } else {
+        setStatus("error");
+      }
     } catch {
       setStatus("error");
     } finally {
       setSaving(false);
     }
-  }, [saving, isDirty, hasInitial, props.matchId, home, away, predictsEt, predictsPens, isKnockout]);
+  }, [saving, isDirty, props.matchId, home, away, predictsEt, predictsPens, isKnockout]);
 
   // Keep a stable ref so the event listener always calls the latest save()
   saveRef.current = save;
@@ -125,22 +135,21 @@ export function MatchCard(props: Props) {
   // Visual state for the card chrome
   const chrome = (() => {
     if (props.isLocked) return "border-slate-800/80 opacity-80";
-    if (isDirty && hasInitial) return "border-amber-400/40 ring-1 ring-amber-400/10";
-    if (isDirty && !hasInitial) return "border-slate-700 hover:border-slate-600";
-    if (hasInitial) return "border-emerald-500/40 ring-1 ring-emerald-500/15";
+    if (isDirty && hasSavedEver) return "border-amber-400/50 bg-amber-500/[0.04] ring-1 ring-amber-400/15";
+    if (isDirty && !hasSavedEver) return "border-amber-400/35 bg-amber-500/[0.025]";
+    if (hasSavedEver) return "border-emerald-500/45 bg-emerald-500/[0.04] ring-1 ring-emerald-500/20";
     return "border-slate-800 hover:border-slate-700";
   })();
 
   const buttonLabel = (() => {
     if (saving) return "Se salvează…";
-    if (status === "saved") return "Salvat ✓";
     if (status === "error") return "Reîncearcă";
-    if (hasInitial && isDirty) return "Actualizează";
-    if (hasInitial && !isDirty) return "Salvat ✓";
+    if (hasSavedEver && isDirty) return "Actualizează";
+    if (hasSavedEver && !isDirty) return "Salvat ✓";
     return "Salvează";
   })();
 
-  const buttonDisabled = saving || (!isDirty && hasInitial && status === "idle");
+  const buttonDisabled = saving || !isDirty;
 
   return (
     <article
@@ -152,11 +161,13 @@ export function MatchCard(props: Props) {
         className={`absolute inset-y-0 left-0 w-[3px] ${
           props.isLocked
             ? "bg-slate-700"
-            : isDirty && hasInitial
+            : isDirty
               ? "bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500"
-              : isKnockout
-                ? "bg-gradient-to-b from-amber-400 via-amber-500 to-rose-500"
-                : "bg-gradient-to-b from-emerald-400 to-emerald-600"
+              : hasSavedEver
+                ? "bg-gradient-to-b from-emerald-400 to-emerald-600"
+                : isKnockout
+                  ? "bg-gradient-to-b from-slate-500 via-slate-600 to-slate-700"
+                  : "bg-gradient-to-b from-slate-600 to-slate-800"
         }`}
       />
 
@@ -172,11 +183,11 @@ export function MatchCard(props: Props) {
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          {hasInitial && !isDirty && !props.isLocked && (
+          {!props.isLocked && hasSavedEver && !isDirty && (
             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" aria-label="salvat" />
           )}
-          {hasInitial && isDirty && !props.isLocked && (
-            <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" aria-label="modificat" />
+          {!props.isLocked && isDirty && (
+            <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" aria-label="nesalvat" />
           )}
           <CountdownLock kickoff={new Date(props.kickoffTime)} />
         </div>
@@ -200,36 +211,60 @@ export function MatchCard(props: Props) {
               home={home}
               away={away}
               disabled={props.isLocked}
-              onHome={(n) => setHome(clampScore(n))}
-              onAway={(n) => setAway(clampScore(n))}
+              onHome={(n) => {
+                setTouched(true);
+                setHome(clampScore(n));
+              }}
+              onAway={(n) => {
+                setTouched(true);
+                setAway(clampScore(n));
+              }}
             />
             <TeamSide team={props.awayTeam!} align="left" />
           </div>
 
           {isKnockout && !props.isLocked && (
             <div className="mt-3 flex items-center justify-center gap-4 text-xs text-slate-400">
-              <Toggle label="Prelungiri" checked={predictsEt} onChange={setPredictsEt} />
-              <Toggle label="Penalty-uri" checked={predictsPens} onChange={setPredictsPens} />
+              <Toggle
+                label="Prelungiri"
+                checked={predictsEt}
+                onChange={(v) => {
+                  setTouched(true);
+                  setPredictsEt(v);
+                }}
+              />
+              <Toggle
+                label="Penalty-uri"
+                checked={predictsPens}
+                onChange={(v) => {
+                  setTouched(true);
+                  setPredictsPens(v);
+                }}
+              />
             </div>
           )}
 
           {!props.isLocked && (
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                {hasInitial
+                {hasSavedEver
                   ? isDirty
                     ? "Modificări nesalvate"
                     : "Pronostic salvat"
-                  : "Niciun pronostic încă"}
+                  : isDirty
+                    ? "Apasă „Salvează"
+                    : "Niciun pronostic încă"}
               </span>
               <button
                 type="button"
                 onClick={() => void save()}
                 disabled={buttonDisabled}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold shadow-[0_0_0_1px_rgba(16,185,129,0.4)] transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  hasInitial && isDirty
-                    ? "bg-amber-400 text-amber-950 shadow-[0_0_0_1px_rgba(251,191,36,0.45)] hover:bg-amber-300"
-                    : "bg-emerald-500 text-emerald-950 hover:bg-emerald-400"
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  isDirty
+                    ? "bg-amber-400 text-amber-950 shadow-[0_0_0_1px_rgba(251,191,36,0.5)] hover:bg-amber-300"
+                    : hasSavedEver
+                      ? "bg-emerald-500/20 text-emerald-200 shadow-[0_0_0_1px_rgba(16,185,129,0.35)]"
+                      : "bg-emerald-500 text-emerald-950 shadow-[0_0_0_1px_rgba(16,185,129,0.4)] hover:bg-emerald-400"
                 }`}
               >
                 {buttonLabel}

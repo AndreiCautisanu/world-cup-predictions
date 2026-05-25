@@ -155,6 +155,40 @@ describe("MatchCard", () => {
     });
   });
 
+  it("dispatches isDirty=false after a successful save", async () => {
+    const events: boolean[] = [];
+    const handler = (e: Event) => {
+      const { matchId, isDirty } = (e as CustomEvent<{ matchId: number; isDirty: boolean }>).detail;
+      if (matchId === 42) events.push(isDirty);
+    };
+    window.addEventListener("pronosticuri:dirty", handler);
+    try {
+      render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
+      const [homeInput] = screen.getAllByRole("spinbutton");
+      fireEvent.change(homeInput, { target: { value: "3" } });
+      // Wait one microtask cycle so the dirty-event from typing flushes
+      await Promise.resolve();
+      expect(events.at(-1)).toBe(true);
+      const saveButton = screen.getByRole("button", { name: /^salvează$/i });
+      fireEvent.click(saveButton);
+      await waitFor(() => expect(events.at(-1)).toBe(false));
+    } finally {
+      window.removeEventListener("pronosticuri:dirty", handler);
+    }
+  });
+
+  it("keeps the button as 'Salvat ✓' (not 'Salvează') indefinitely after saving a new prediction", async () => {
+    jest.useRealTimers(); // real timers so the 2.5s "saved" flash actually elapses
+    render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
+    const [homeInput] = screen.getAllByRole("spinbutton");
+    fireEvent.change(homeInput, { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /^salvează$/i }));
+    // Wait past the 2.5s status auto-reset; button must remain in a "saved" state
+    await new Promise((r) => setTimeout(r, 2700));
+    expect(screen.queryByRole("button", { name: /^salvează$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /salvat/i })).toBeInTheDocument();
+  });
+
   it("includes ET/pens flags in the save body for knockout matches", async () => {
     render(
       <MatchCard
