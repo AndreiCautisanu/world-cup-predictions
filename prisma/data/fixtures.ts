@@ -41,7 +41,7 @@ export const KNOCKOUT_SLOTS: KnockoutSlot[] = [
   ...Array.from({ length: 8 }, (_, i) => ({
     round: "R16" as const,
     slotDescription: `R16 Meciul ${i + 1}`,
-    kickoffTime: `2026-07-0${3 + Math.floor(i / 2)}T18:00:00Z`,
+    kickoffTime: `2026-07-${String(3 + Math.floor(i / 2)).padStart(2, "0")}T18:00:00Z`,
   })),
   // Quarterfinals — 4 matches
   ...Array.from({ length: 4 }, (_, i) => ({
@@ -53,7 +53,7 @@ export const KNOCKOUT_SLOTS: KnockoutSlot[] = [
   ...Array.from({ length: 2 }, (_, i) => ({
     round: "SF" as const,
     slotDescription: `Semifinale Meciul ${i + 1}`,
-    kickoffTime: `2026-07-${14 + i}T18:00:00Z`,
+    kickoffTime: `2026-07-${String(14 + i).padStart(2, "0")}T18:00:00Z`,
   })),
   { round: "THIRD_PLACE" as const, slotDescription: "Finala mică (locul 3)", kickoffTime: "2026-07-18T18:00:00Z" },
   { round: "FINAL" as const, slotDescription: "Finala", kickoffTime: "2026-07-19T18:00:00Z" },
