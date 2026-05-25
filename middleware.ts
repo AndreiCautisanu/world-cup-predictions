@@ -9,6 +9,7 @@ export default auth((req) => {
   const session = req.auth;
 
   const isPublicPath =
+    nextUrl.pathname === "/" ||
     nextUrl.pathname === "/login" ||
     nextUrl.pathname === "/register" ||
     nextUrl.pathname.startsWith("/api/auth") ||
