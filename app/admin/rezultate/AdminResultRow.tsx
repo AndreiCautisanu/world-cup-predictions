@@ -83,6 +83,7 @@ export function AdminResultRow({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          action: "save",
           matchId: match.id,
           homeScore: home,
           awayScore: away,
@@ -106,7 +107,36 @@ export function AdminResultRow({
     }
   }
 
+  async function clear() {
+    if (!window.confirm("Golești rezultatul? Toate punctele acordate pentru acest meci vor fi anulate.")) return;
+    setStatus("saving");
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/results", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "clear", matchId: match.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Eroare la golire");
+        setStatus("error");
+        return;
+      }
+      setHome(0);
+      setAway(0);
+      setWentToEt(false);
+      setWentToPens(false);
+      setStatus("idle");
+      router.refresh();
+    } catch {
+      setError("Eroare de rețea");
+      setStatus("error");
+    }
+  }
+
   const finished = status === "saved";
+  const isBusy = status === "saving";
 
   return (
     <article
@@ -208,14 +238,26 @@ export function AdminResultRow({
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={save}
-          disabled={status === "saving" || !canSave}
-          className="rounded-full bg-rose-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-rose-50 transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {finished ? "Reactualizează" : "Salvează"}
-        </button>
+        <div className="flex items-center gap-2">
+          {finished && (
+            <button
+              type="button"
+              onClick={clear}
+              disabled={isBusy}
+              className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-50"
+            >
+              Golire
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={save}
+            disabled={isBusy || !canSave}
+            className="rounded-full bg-rose-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-rose-50 transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {finished ? "Reactualizează" : "Salvează"}
+          </button>
+        </div>
       </div>
     </article>
   );

@@ -265,6 +265,58 @@ export async function recalcChampionAndRunnerUp(prisma: PrismaClient): Promise<v
   );
 }
 
+// Reverse of calculateAndStorePoints — resets a match to SCHEDULED and clears
+// all derived points that depended on it.
+export async function clearMatchResult(
+  prisma: PrismaClient,
+  matchId: number
+): Promise<void> {
+  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  if (!match) return;
+
+  // 1. Reset the match row.
+  await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      homeScore: null,
+      awayScore: null,
+      wentToEt: null,
+      wentToPens: null,
+      status: "SCHEDULED",
+    },
+  });
+
+  // 2. Null out match prediction points for this match.
+  await prisma.matchPrediction.updateMany({
+    where: { matchId },
+    data: { pointsAwarded: null },
+  });
+
+  // 3. If a group match: the group standings are now incomplete — clear those too
+  //    so users don't keep ghost points from an incomplete group.
+  if (match.groupId && isGroupRound(match.round)) {
+    await prisma.groupStandingPrediction.updateMany({
+      where: { groupId: match.groupId },
+      data: { pointsAwarded: null },
+    });
+  }
+
+  // 4. If a KO round that affects dark horse: re-derive from remaining finished
+  //    matches (recalcDarkHorse is idempotent — it rebuilds from scratch).
+  if ((KO_ROUNDS_FOR_DARK_HORSE as readonly Round[]).includes(match.round)) {
+    await recalcDarkHorse(prisma);
+  }
+
+  // 5. If the final was cleared: null champion/runner-up bonus points explicitly
+  //    (recalcChampionAndRunnerUp bails early when no FINISHED final exists, so
+  //    it won't zero them out on its own).
+  if (match.round === "FINAL") {
+    await prisma.bonusPrediction.updateMany({
+      data: { championPts: null, runnerUpPts: null },
+    });
+  }
+}
+
 export async function calculateAndStorePoints(
   prisma: PrismaClient,
   matchId: number
