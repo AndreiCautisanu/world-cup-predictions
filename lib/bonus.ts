@@ -33,12 +33,12 @@ export function validateBonusSelection(
 
   if (!champion) return { ok: false, error: "Campion invalid" };
   if (!runnerUp) return { ok: false, error: "Finalist invalid" };
-  if (!darkHorse) return { ok: false, error: "Cal negru invalid" };
+  if (!darkHorse) return { ok: false, error: "Surpriza turneului invalidă" };
 
   if (darkHorse.pot !== 3 && darkHorse.pot !== 4) {
     return {
       ok: false,
-      error: "Calul negru trebuie să fie din urna 3 sau urna 4",
+      error: "Surpriza turneului trebuie să fie din urna 3 sau urna 4",
     };
   }
 

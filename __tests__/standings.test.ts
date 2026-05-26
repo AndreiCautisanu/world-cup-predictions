@@ -1,4 +1,4 @@
-import { validateStandingsSelection } from "@/lib/standings";
+import { moveInOrder, validateStandingsSelection } from "@/lib/standings";
 
 const groupTeamIds = [10, 11, 12, 13];
 
@@ -65,5 +65,24 @@ describe("validateStandingsSelection", () => {
       groupTeamIds
     );
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("moveInOrder", () => {
+  it("moves an item forward", () => {
+    expect(moveInOrder([10, 11, 12, 13], 0, 2)).toEqual([11, 12, 10, 13]);
+  });
+
+  it("moves an item backward", () => {
+    expect(moveInOrder([10, 11, 12, 13], 3, 1)).toEqual([10, 13, 11, 12]);
+  });
+
+  it("returns the same array when from === to", () => {
+    expect(moveInOrder([10, 11, 12, 13], 2, 2)).toEqual([10, 11, 12, 13]);
+  });
+
+  it("returns the same array on out-of-bounds indices", () => {
+    expect(moveInOrder([10, 11, 12, 13], -1, 2)).toEqual([10, 11, 12, 13]);
+    expect(moveInOrder([10, 11, 12, 13], 1, 9)).toEqual([10, 11, 12, 13]);
   });
 });

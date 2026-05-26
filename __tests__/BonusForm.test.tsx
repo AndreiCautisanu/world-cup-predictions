@@ -40,12 +40,12 @@ describe("BonusForm", () => {
     expect(screen.getByLabelText(/campion/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/finalist/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/golgheter/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/cal negru/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/surpriza/i)).toBeInTheDocument();
   });
 
   it("filters dark horse options to pots 3 and 4 only", () => {
     render(<BonusForm {...baseProps} />);
-    const darkHorseSelect = screen.getByLabelText(/cal negru/i) as HTMLSelectElement;
+    const darkHorseSelect = screen.getByLabelText(/surpriza/i) as HTMLSelectElement;
     const optionValues = Array.from(darkHorseSelect.options)
       .filter((o) => o.value !== "")
       .map((o) => Number(o.value));
@@ -57,7 +57,7 @@ describe("BonusForm", () => {
     expect(screen.getByLabelText(/campion/i)).toBeDisabled();
     expect(screen.getByLabelText(/finalist/i)).toBeDisabled();
     expect(screen.getByLabelText(/golgheter/i)).toBeDisabled();
-    expect(screen.getByLabelText(/cal negru/i)).toBeDisabled();
+    expect(screen.getByLabelText(/surpriza/i)).toBeDisabled();
     expect(screen.queryByRole("button", { name: /salv/i })).not.toBeInTheDocument();
   });
 
@@ -85,7 +85,7 @@ describe("BonusForm", () => {
     fireEvent.change(screen.getByLabelText(/golgheter/i), {
       target: { value: "Lionel Messi" },
     });
-    fireEvent.change(screen.getByLabelText(/cal negru/i), {
+    fireEvent.change(screen.getByLabelText(/surpriza/i), {
       target: { value: "5" },
     });
     fireEvent.click(screen.getByRole("button", { name: /salv/i }));
@@ -128,7 +128,7 @@ describe("BonusForm", () => {
       (screen.getByLabelText(/golgheter/i) as HTMLInputElement).value
     ).toBe("Mbappé");
     expect(
-      (screen.getByLabelText(/cal negru/i) as HTMLSelectElement).value
+      (screen.getByLabelText(/surpriza/i) as HTMLSelectElement).value
     ).toBe("6");
   });
 
@@ -140,7 +140,7 @@ describe("BonusForm", () => {
     fireEvent.change(screen.getByLabelText(/finalist/i), {
       target: { value: "3" },
     });
-    fireEvent.change(screen.getByLabelText(/cal negru/i), {
+    fireEvent.change(screen.getByLabelText(/surpriza/i), {
       target: { value: "5" },
     });
     expect(screen.getByRole("button", { name: /salv/i })).toBeDisabled();
@@ -162,7 +162,7 @@ describe("BonusForm", () => {
     fireEvent.change(screen.getByLabelText(/golgheter/i), {
       target: { value: "Messi" },
     });
-    fireEvent.change(screen.getByLabelText(/cal negru/i), {
+    fireEvent.change(screen.getByLabelText(/surpriza/i), {
       target: { value: "5" },
     });
     fireEvent.click(screen.getByRole("button", { name: /salv/i }));

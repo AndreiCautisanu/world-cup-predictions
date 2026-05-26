@@ -69,6 +69,23 @@ export default async function PronosticuriPage({
         </p>
       </section>
 
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <CTACard
+          href="/pronosticuri/clasament-grupe"
+          eyebrow="Predicție bonus"
+          title="Clasament grupe"
+          description="Ordinea finală 1–4 în fiecare grupă. 3 puncte per loc corect."
+          accent="emerald"
+        />
+        <CTACard
+          href="/pronosticuri/bonus"
+          eyebrow="Predicție bonus"
+          title="Marile pariuri"
+          description="Campion, finalist, golgheter, surpriza turneului. Punctaj mare."
+          accent="amber"
+        />
+      </section>
+
       <div className="relative -mx-4">
         <nav
           aria-label="Etapă"
@@ -139,22 +156,6 @@ export default async function PronosticuriPage({
         </div>
       )}
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <CTACard
-          href="/pronosticuri/clasament-grupe"
-          eyebrow="Predicție următoare"
-          title="Clasament grupe"
-          description="Ordinea finală 1–4 în fiecare grupă. 3 puncte per loc corect."
-          accent="emerald"
-        />
-        <CTACard
-          href="/pronosticuri/bonus"
-          eyebrow="Predicție următoare"
-          title="Bonus tournament"
-          description="Campion, vicecampion, golgheter, dark horse. Punctaj mare."
-          accent="amber"
-        />
-      </section>
     </div>
   );
 }

@@ -297,7 +297,7 @@ function TeamSide({ team, align }: { team: Team; align: "left" | "right" }) {
 
 function TeamName({ name }: { name: string }) {
   return (
-    <span className="font-display truncate text-sm font-semibold uppercase tracking-[0.06em] text-slate-100">
+    <span className="truncate text-base font-bold tracking-tight text-slate-50 sm:text-lg">
       {name}
     </span>
   );
