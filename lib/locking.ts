@@ -10,11 +10,16 @@ export function isMatchLocked(kickoff: Date, now: Date = new Date()): boolean {
 
 type FirstMatchSource = {
   match: {
-    findFirst: (args: unknown) => Promise<{ kickoffTime: Date } | null>;
+    findFirst: (args: {
+      orderBy: { kickoffTime: "asc" | "desc" };
+      select: { kickoffTime: true };
+    }) => Promise<{ kickoffTime: Date } | null>;
   };
 };
 
-export async function tournamentLockTime(prisma: FirstMatchSource): Promise<Date | null> {
+export async function tournamentLockTime(
+  prisma: FirstMatchSource
+): Promise<Date | null> {
   const first = await prisma.match.findFirst({
     orderBy: { kickoffTime: "asc" },
     select: { kickoffTime: true },
