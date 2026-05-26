@@ -29,7 +29,7 @@ export default async function BonusPage() {
         </p>
         <div className="flex items-end justify-between gap-3">
           <h1 className="font-display text-3xl font-extrabold uppercase tracking-tight text-slate-50 sm:text-4xl">
-            Marile pariuri
+            Bonus
           </h1>
           <span
             className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.2em] ${
@@ -42,8 +42,7 @@ export default async function BonusPage() {
           </span>
         </div>
         <p className="text-sm text-slate-400">
-          Predicții pre-turneu, blocate la primul fluier. Punctaj concentrat —
-          puține câmpuri, mize mari.
+          Predicții pre-turneu, blocate la primul fluier.
           {locked && (
             <span className="ml-1 text-rose-300">· Blocate</span>
           )}

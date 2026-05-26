@@ -72,16 +72,16 @@ export default async function PronosticuriPage({
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <CTACard
           href="/pronosticuri/clasament-grupe"
-          eyebrow="Predicție bonus"
+          eyebrow="Pre-turneu"
           title="Clasament grupe"
           description="Ordinea finală 1–4 în fiecare grupă. 3 puncte per loc corect."
           accent="emerald"
         />
         <CTACard
           href="/pronosticuri/bonus"
-          eyebrow="Predicție bonus"
-          title="Marile pariuri"
-          description="Campion, finalist, golgheter, surpriza turneului. Punctaj mare."
+          eyebrow="Pre-turneu"
+          title="Bonus"
+          description="Campion, finalist, golgheter, surpriza turneului."
           accent="amber"
         />
       </section>

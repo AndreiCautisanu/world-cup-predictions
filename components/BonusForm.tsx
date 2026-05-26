@@ -330,13 +330,13 @@ function TrophyCard({
   const a = ACCENTS[accent];
   return (
     <article
-      className={`group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-950 shadow-lg shadow-black/20 backdrop-blur ring-1 transition ${
+      className={`group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-950 shadow-lg shadow-black/20 backdrop-blur ring-1 transition ${
         invalid ? "ring-rose-500/40" : a.ring
       }`}
     >
       <span
         aria-hidden
-        className={`absolute inset-y-0 left-0 w-[3px] ${
+        className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] rounded-l-2xl ${
           invalid ? "bg-gradient-to-b from-rose-400 to-rose-600" : a.stripe
         }`}
       />
@@ -455,9 +455,12 @@ function ScorerCard({
   const a = ACCENTS.sky;
   return (
     <article
-      className={`group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-950 shadow-lg shadow-black/20 backdrop-blur ring-1 transition ${a.ring}`}
+      className={`group relative rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-950 shadow-lg shadow-black/20 backdrop-blur ring-1 transition ${a.ring}`}
     >
-      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${a.stripe}`} />
+      <span
+        aria-hidden
+        className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] rounded-l-2xl ${a.stripe}`}
+      />
 
       <header className="flex items-start justify-between gap-3 border-b border-slate-800/70 px-4 py-2.5">
         <div className="flex min-w-0 flex-col">
