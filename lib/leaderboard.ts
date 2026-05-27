@@ -33,7 +33,11 @@ export type LeaderboardRow = {
   total: number;
 };
 
-function buildDisplayName(u: Pick<LeaderboardUserInput, "username" | "firstName" | "lastName">): string {
+export function buildDisplayName(u: {
+  username: string;
+  firstName?: string | null;
+  lastName?: string | null;
+}): string {
   const first = u.firstName?.trim();
   const last = u.lastName?.trim();
   if (first && last) return `${first} ${last}`;

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getLeaderboard, type LeaderboardRow } from "@/lib/leaderboard";
@@ -136,9 +137,9 @@ function PodiumHero({ row, highlighted }: { row: LeaderboardRow; highlighted: bo
       <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1">
           <p className="flex items-baseline gap-2">
-            <span className="font-display truncate text-3xl font-extrabold uppercase tracking-tight text-slate-50 sm:text-4xl">
+            <NameLink username={row.username} className="font-display truncate text-3xl font-extrabold uppercase tracking-tight text-slate-50 transition hover:text-amber-100 sm:text-4xl">
               {row.displayName}
-            </span>
+            </NameLink>
             {highlighted && <YouPill />}
           </p>
           {(row.firstName || row.lastName) && (
@@ -161,6 +162,8 @@ function PodiumHero({ row, highlighted }: { row: LeaderboardRow; highlighted: bo
       </div>
 
       <CategoryBreakdown row={row} className="mt-5" />
+
+      <ViewPredictionsLink username={row.username} className="mt-5 text-amber-200/90 hover:text-amber-100" />
     </article>
   );
 }
@@ -197,9 +200,9 @@ function PodiumSide({
 
       <div className="space-y-1">
         <p className="flex items-baseline gap-2 truncate">
-          <span className="font-display truncate text-xl font-extrabold uppercase tracking-tight text-slate-50">
+          <NameLink username={row.username} className="font-display truncate text-xl font-extrabold uppercase tracking-tight text-slate-50 transition hover:text-slate-200">
             {row.displayName}
-          </span>
+          </NameLink>
           {highlighted && <YouPill />}
         </p>
         {(row.firstName || row.lastName) && (
@@ -213,6 +216,7 @@ function PodiumSide({
 
       <CategoryBar row={row} />
       <CategoryBreakdown row={row} compact />
+      <ViewPredictionsLink username={row.username} className="text-slate-400 hover:text-slate-200" />
     </article>
   );
 }
@@ -227,30 +231,105 @@ function LeaderboardRowItem({
   highlighted: boolean;
 }) {
   return (
-    <li
-      className={[
-        "flex items-center gap-4 border-t border-slate-800/80 px-4 py-3 first:border-t-0",
-        highlighted ? "bg-emerald-400/10" : "transition hover:bg-slate-900/40",
-      ].join(" ")}
-    >
-      <span className="font-display w-8 shrink-0 text-center text-base font-bold tabular-nums text-slate-400">
-        {place}
-      </span>
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <p className="flex items-baseline gap-2 truncate">
-          <span className="truncate text-sm font-semibold text-slate-100">{row.displayName}</span>
-          {(row.firstName || row.lastName) && (
-            <span className="hidden truncate text-[11px] text-slate-500 sm:inline">@{row.username}</span>
-          )}
-          {highlighted && <YouPill />}
-        </p>
-        <CategoryBar row={row} thin />
-      </div>
-      <div className="shrink-0 text-right">
-        <p className="font-display text-2xl font-extrabold leading-none text-slate-50">{row.total}</p>
-        <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-slate-500">pct</p>
-      </div>
+    <li className={highlighted ? "bg-emerald-400/10" : ""}>
+      <details className="group border-t border-slate-800/80 first:border-t-0">
+        <summary
+          className={[
+            "flex cursor-pointer list-none items-center gap-4 px-4 py-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 focus-visible:ring-inset",
+            highlighted ? "" : "hover:bg-slate-900/40",
+            "[&::-webkit-details-marker]:hidden",
+          ].join(" ")}
+        >
+          <span className="font-display w-8 shrink-0 text-center text-base font-bold tabular-nums text-slate-400">
+            {place}
+          </span>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <p className="flex items-baseline gap-2 truncate">
+              <span className="truncate text-sm font-semibold text-slate-100">{row.displayName}</span>
+              {(row.firstName || row.lastName) && (
+                <span className="hidden truncate text-[11px] text-slate-500 sm:inline">@{row.username}</span>
+              )}
+              {highlighted && <YouPill />}
+            </p>
+            <CategoryBar row={row} thin />
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="font-display text-2xl font-extrabold leading-none text-slate-50">{row.total}</p>
+            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-slate-500">pct</p>
+          </div>
+          <Chevron />
+        </summary>
+        <div className="border-t border-slate-800/40 bg-slate-900/30 px-4 py-4 sm:pl-16">
+          <CategoryBreakdown row={row} className="grid-cols-2 gap-y-2" />
+          <ViewPredictionsLink
+            username={row.username}
+            className="mt-4 text-slate-300 hover:text-emerald-200"
+          />
+        </div>
+      </details>
     </li>
+  );
+}
+
+function Chevron() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 20 20"
+      className="h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 group-open:rotate-90"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 5l6 5-6 5" />
+    </svg>
+  );
+}
+
+function NameLink({
+  username,
+  className,
+  children,
+}: {
+  username: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link href={`/jucator/${encodeURIComponent(username)}`} className={className}>
+      {children}
+    </Link>
+  );
+}
+
+function ViewPredictionsLink({
+  username,
+  className,
+}: {
+  username: string;
+  className?: string;
+}) {
+  return (
+    <Link
+      href={`/jucator/${encodeURIComponent(username)}`}
+      className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.22em] transition ${className ?? ""}`}
+    >
+      Vezi predicțiile
+      <svg
+        aria-hidden
+        viewBox="0 0 20 20"
+        className="h-3 w-3 transition-transform group-hover:translate-x-0.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M5 10h10M11 5l5 5-5 5" />
+      </svg>
+    </Link>
   );
 }
 
