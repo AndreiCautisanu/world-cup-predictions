@@ -49,9 +49,17 @@ export default async function JucatorPage({
   const displayName = buildDisplayName(user);
   const now = new Date();
 
-  // Tournament lock — controls visibility of bonus + standings
+  // Tournament lock — controls visibility of bonus + standings.
+  // Considered "started" once either the first kickoff time has passed
+  // OR any group-stage match has been resulted (covers admin-entered or
+  // demo-spoofed results landing before the scheduled kickoff window).
   const tournamentStart = await tournamentLockTime(prisma);
-  const tournamentStarted = isTournamentLocked(tournamentStart, now);
+  const anyGroupFinished = await prisma.match.findFirst({
+    where: { round: { in: ["GROUP_1", "GROUP_2", "GROUP_3"] }, status: "FINISHED" },
+    select: { id: true },
+  });
+  const tournamentStarted =
+    isTournamentLocked(tournamentStart, now) || anyGroupFinished !== null;
 
   // ── Compute totals from ALL predictions (visible or not) so the header
   //    reflects the leaderboard exactly; the visibility filter only affects
@@ -87,9 +95,15 @@ export default async function JucatorPage({
     },
   ]);
 
-  // ── Visible match predictions (only matches whose kickoff has passed) ──
+  // ── Visible match predictions: kickoff has passed OR the match is
+  //    already FINISHED (the admin may have entered a result before the
+  //    scheduled kickoff e.g. for demo data; once a result exists the
+  //    prediction can no longer change so it's safe to show). ─────────
   const visibleMatchPreds = await prisma.matchPrediction.findMany({
-    where: { userId: user.id, match: { kickoffTime: { lte: now } } },
+    where: {
+      userId: user.id,
+      match: { OR: [{ kickoffTime: { lte: now } }, { status: "FINISHED" }] },
+    },
     include: {
       match: { include: { homeTeam: true, awayTeam: true, group: true } },
     },
