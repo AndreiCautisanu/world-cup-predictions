@@ -20,6 +20,9 @@ describe("summarizeLeaderboardRows", () => {
       {
         userId: 1,
         username: "andrei",
+        firstName: null,
+        lastName: null,
+        displayName: "andrei",
         groupMatchPts: 0,
         groupStandingPts: 0,
         knockoutPts: 0,
@@ -129,6 +132,8 @@ describe("summarizeLeaderboardRows", () => {
       user({
         id: 1,
         username: "andrei",
+        firstName: "Andrei",
+        lastName: "Popescu",
         matchPredictions: [
           { pointsAwarded: 7, match: { round: "GROUP_1" } },
           { pointsAwarded: 10, match: { round: "FINAL" } },
@@ -145,6 +150,9 @@ describe("summarizeLeaderboardRows", () => {
     expect(row).toEqual({
       userId: 1,
       username: "andrei",
+      firstName: "Andrei",
+      lastName: "Popescu",
+      displayName: "Andrei Popescu",
       groupMatchPts: 7,
       groupStandingPts: 6,
       knockoutPts: 10,
@@ -174,12 +182,42 @@ describe("summarizeLeaderboardRows", () => {
     expect(rows.map((r) => r.userId)).toEqual([2, 3, 1]);
   });
 
-  it("breaks ties by username (case-insensitive ascending) so display order is stable", () => {
+  it("breaks ties by displayName (case-insensitive ascending) so display order is stable", () => {
     const rows = summarizeLeaderboardRows([
-      user({ id: 1, username: "Zara" }),
+      user({ id: 1, username: "zaraz", firstName: "Zara", lastName: "Zamfir" }),
       user({ id: 2, username: "andrei" }),
-      user({ id: 3, username: "Mihai" }),
+      user({ id: 3, username: "user3", firstName: "Mihai", lastName: "Stan" }),
     ]);
-    expect(rows.map((r) => r.username)).toEqual(["andrei", "Mihai", "Zara"]);
+    expect(rows.map((r) => r.displayName)).toEqual(["andrei", "Mihai Stan", "Zara Zamfir"]);
+  });
+
+  it("builds displayName as 'First Last' when both names are present", () => {
+    const [row] = summarizeLeaderboardRows([
+      user({ id: 1, username: "andrei_p", firstName: "Andrei", lastName: "Popescu" }),
+    ]);
+    expect(row.displayName).toBe("Andrei Popescu");
+    expect(row.firstName).toBe("Andrei");
+    expect(row.lastName).toBe("Popescu");
+  });
+
+  it("falls back to username when neither name is set", () => {
+    const [row] = summarizeLeaderboardRows([
+      user({ id: 1, username: "no_name_user" }),
+    ]);
+    expect(row.displayName).toBe("no_name_user");
+    expect(row.firstName).toBeNull();
+    expect(row.lastName).toBeNull();
+  });
+
+  it("trims whitespace and falls back when only one name field is filled", () => {
+    const [onlyFirst] = summarizeLeaderboardRows([
+      user({ id: 1, username: "a", firstName: "  Andrei  ", lastName: "" }),
+    ]);
+    expect(onlyFirst.displayName).toBe("Andrei");
+
+    const [onlyLast] = summarizeLeaderboardRows([
+      user({ id: 2, username: "b", firstName: null, lastName: " Popescu " }),
+    ]);
+    expect(onlyLast.displayName).toBe("Popescu");
   });
 });

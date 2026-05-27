@@ -3,10 +3,19 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
+const nameField = z
+  .string()
+  .trim()
+  .min(1, "Numele e obligatoriu")
+  .max(50, "Maxim 50 de caractere");
+
 const schema = z.object({
   inviteCode: z.string().min(1, "Cod de invitație necesar"),
+  firstName: nameField,
+  lastName: nameField,
   username: z
     .string()
+    .trim()
     .min(3, "Minim 3 caractere")
     .max(30)
     .regex(/^[a-zA-Z0-9_-]+$/, "Doar litere, cifre, _ și -"),
@@ -23,7 +32,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { inviteCode, username, password } = parsed.data;
+  const { inviteCode, firstName, lastName, username, password } = parsed.data;
 
   const code = await prisma.inviteCode.findUnique({ where: { code: inviteCode } });
   if (!code || !code.isActive) {
@@ -37,7 +46,7 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.create({
-    data: { username, passwordHash, isAdmin: false },
+    data: { username, passwordHash, firstName, lastName, isAdmin: false },
   });
 
   return NextResponse.json({ ok: true });

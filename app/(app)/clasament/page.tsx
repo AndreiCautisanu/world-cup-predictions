@@ -5,14 +5,15 @@ import { getLeaderboard, type LeaderboardRow } from "@/lib/leaderboard";
 export const dynamic = "force-dynamic";
 
 const CATEGORIES = [
-  { key: "groupMatchPts", label: "Grupe", barClass: "bg-emerald-400" },
-  { key: "groupStandingPts", label: "Clasamente", barClass: "bg-sky-400" },
-  { key: "knockoutPts", label: "Knockout", barClass: "bg-amber-400" },
-  { key: "bonusPts", label: "Bonus", barClass: "bg-fuchsia-400" },
+  { key: "groupMatchPts", label: "Grupe", barClass: "bg-emerald-400", dotClass: "bg-emerald-400" },
+  { key: "groupStandingPts", label: "Clasamente", barClass: "bg-sky-400", dotClass: "bg-sky-400" },
+  { key: "knockoutPts", label: "Knockout", barClass: "bg-amber-400", dotClass: "bg-amber-400" },
+  { key: "bonusPts", label: "Bonus", barClass: "bg-fuchsia-400", dotClass: "bg-fuchsia-400" },
 ] as const satisfies ReadonlyArray<{
   key: keyof Pick<LeaderboardRow, "groupMatchPts" | "groupStandingPts" | "knockoutPts" | "bonusPts">;
   label: string;
   barClass: string;
+  dotClass: string;
 }>;
 
 const PODIUM_RING: Record<number, string> = {
@@ -73,29 +74,25 @@ export default async function ClasamentPage() {
 
       {totalPlayers > 0 && (
         <>
-          <section aria-label="Podium" className="grid gap-3 sm:grid-cols-3">
-            {podium.map((row, i) => {
-              const place = i + 1;
-              const isMe = meId === row.userId;
-              return (
-                <PodiumCard
-                  key={row.userId}
-                  row={row}
-                  place={place}
-                  highlighted={isMe}
-                  emphasis={place === 1}
-                />
-              );
-            })}
-            {/* Fill empty podium slots with placeholders so the grid looks intentional pre-tournament */}
-            {Array.from({ length: Math.max(0, 3 - podium.length) }).map((_, i) => (
-              <div
-                key={`placeholder-${i}`}
-                className="hidden rounded-2xl border border-dashed border-slate-800 bg-slate-950/30 p-5 sm:block"
-                aria-hidden
-              />
-            ))}
-          </section>
+          {podium.length > 0 && (
+            <PodiumHero row={podium[0]} highlighted={meId === podium[0].userId} />
+          )}
+
+          {podium.length > 1 && (
+            <section aria-label="Locurile 2 și 3" className="grid gap-3 sm:grid-cols-2">
+              {podium.slice(1).map((row, i) => {
+                const place = i + 2;
+                return (
+                  <PodiumSide
+                    key={row.userId}
+                    row={row}
+                    place={place}
+                    highlighted={meId === row.userId}
+                  />
+                );
+              })}
+            </section>
+          )}
 
           {rest.length > 0 && (
             <section aria-label="Restul clasamentului" className="space-y-2">
@@ -119,16 +116,63 @@ export default async function ClasamentPage() {
   );
 }
 
-function PodiumCard({
+function PodiumHero({ row, highlighted }: { row: LeaderboardRow; highlighted: boolean }) {
+  return (
+    <article
+      className={[
+        "relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-slate-950 p-6 ring-1 ring-amber-300/60 sm:p-8",
+        highlighted ? "outline outline-2 outline-offset-2 outline-emerald-400/70" : "",
+      ].join(" ")}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 font-display text-lg font-bold ${PODIUM_BADGE[1]}`}>
+          1
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-amber-200/80">
+          {PODIUM_LABEL[1]}
+        </span>
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-baseline gap-2">
+            <span className="font-display truncate text-3xl font-extrabold uppercase tracking-tight text-slate-50 sm:text-4xl">
+              {row.displayName}
+            </span>
+            {highlighted && <YouPill />}
+          </p>
+          {(row.firstName || row.lastName) && (
+            <p className="mt-1 text-xs font-medium text-amber-100/60">@{row.username}</p>
+          )}
+        </div>
+
+        <div className="shrink-0 text-right">
+          <p className="font-display text-6xl font-extrabold leading-none text-slate-50 sm:text-7xl">
+            {row.total}
+          </p>
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.32em] text-slate-400">
+            puncte
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <CategoryBar row={row} />
+      </div>
+
+      <CategoryBreakdown row={row} className="mt-5" />
+    </article>
+  );
+}
+
+function PodiumSide({
   row,
   place,
   highlighted,
-  emphasis,
 }: {
   row: LeaderboardRow;
   place: number;
   highlighted: boolean;
-  emphasis: boolean;
 }) {
   const ring = PODIUM_RING[place] ?? "ring-slate-700/50 from-slate-800/30 via-slate-800/10";
   const badge = PODIUM_BADGE[place] ?? "bg-slate-700 text-slate-100";
@@ -137,11 +181,8 @@ function PodiumCard({
   return (
     <article
       className={[
-        "relative flex flex-col gap-4 overflow-hidden rounded-2xl p-5",
-        "bg-gradient-to-br to-slate-950",
-        "ring-1",
+        "relative flex flex-col gap-4 overflow-hidden rounded-2xl bg-gradient-to-br to-slate-950 p-5 ring-1",
         ring,
-        emphasis ? "sm:p-6" : "",
         highlighted ? "outline outline-2 outline-offset-2 outline-emerald-400/70" : "",
       ].join(" ")}
     >
@@ -156,31 +197,22 @@ function PodiumCard({
 
       <div className="space-y-1">
         <p className="flex items-baseline gap-2 truncate">
-          <span className="truncate text-lg font-semibold text-slate-50">{row.username}</span>
-          {highlighted && (
-            <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
-              tu
-            </span>
-          )}
-        </p>
-        <p className="flex items-baseline gap-2 text-slate-300">
-          <span className={`font-display font-extrabold leading-none ${emphasis ? "text-5xl sm:text-6xl" : "text-4xl"}`}>
-            {row.total}
+          <span className="font-display truncate text-xl font-extrabold uppercase tracking-tight text-slate-50">
+            {row.displayName}
           </span>
+          {highlighted && <YouPill />}
+        </p>
+        {(row.firstName || row.lastName) && (
+          <p className="text-[11px] font-medium text-slate-500">@{row.username}</p>
+        )}
+        <p className="flex items-baseline gap-2 pt-1 text-slate-300">
+          <span className="font-display text-4xl font-extrabold leading-none">{row.total}</span>
           <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-slate-500">puncte</span>
         </p>
       </div>
 
       <CategoryBar row={row} />
-
-      <dl className="grid grid-cols-4 gap-1.5 text-[10px]">
-        {CATEGORIES.map((c) => (
-          <div key={c.key} className="rounded-md border border-slate-800/80 bg-slate-900/40 px-2 py-1.5">
-            <dt className="font-semibold uppercase tracking-widest text-slate-500">{c.label.slice(0, 4)}</dt>
-            <dd className="font-display text-sm font-bold text-slate-100">{row[c.key]}</dd>
-          </div>
-        ))}
-      </dl>
+      <CategoryBreakdown row={row} compact />
     </article>
   );
 }
@@ -206,12 +238,11 @@ function LeaderboardRowItem({
       </span>
       <div className="min-w-0 flex-1 space-y-1.5">
         <p className="flex items-baseline gap-2 truncate">
-          <span className="truncate text-sm font-semibold text-slate-100">{row.username}</span>
-          {highlighted && (
-            <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
-              tu
-            </span>
+          <span className="truncate text-sm font-semibold text-slate-100">{row.displayName}</span>
+          {(row.firstName || row.lastName) && (
+            <span className="hidden truncate text-[11px] text-slate-500 sm:inline">@{row.username}</span>
           )}
+          {highlighted && <YouPill />}
         </p>
         <CategoryBar row={row} thin />
       </div>
@@ -250,6 +281,46 @@ function CategoryBar({ row, thin }: { row: LeaderboardRow; thin?: boolean }) {
   );
 }
 
+function CategoryBreakdown({
+  row,
+  className,
+  compact,
+}: {
+  row: LeaderboardRow;
+  className?: string;
+  compact?: boolean;
+}) {
+  return (
+    <dl
+      className={[
+        "grid gap-x-4 gap-y-1.5 text-sm",
+        compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2",
+        className ?? "",
+      ].join(" ")}
+    >
+      {CATEGORIES.map((c) => (
+        <div key={c.key} className="flex items-center justify-between gap-3">
+          <dt className="flex min-w-0 items-center gap-2 text-xs text-slate-300">
+            <span className={`h-2 w-2 shrink-0 rounded-full ${c.dotClass}`} aria-hidden />
+            <span className="truncate">{c.label}</span>
+          </dt>
+          <dd className="font-display text-sm font-bold tabular-nums text-slate-100">
+            {row[c.key]}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function YouPill() {
+  return (
+    <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
+      tu
+    </span>
+  );
+}
+
 function Legend() {
   return (
     <section className="rounded-2xl border border-slate-800/70 bg-slate-950/40 p-4">
@@ -257,7 +328,7 @@ function Legend() {
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
         {CATEGORIES.map((c) => (
           <div key={c.key} className="flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 rounded-full ${c.barClass}`} aria-hidden />
+            <span className={`h-2.5 w-2.5 rounded-full ${c.dotClass}`} aria-hidden />
             <dt className="text-xs font-medium text-slate-300">{c.label}</dt>
           </div>
         ))}

@@ -5,6 +5,8 @@ const GROUP_ROUNDS = new Set(["GROUP_1", "GROUP_2", "GROUP_3"]);
 export type LeaderboardUserInput = {
   id: number;
   username: string;
+  firstName?: string | null;
+  lastName?: string | null;
   matchPredictions: Array<{
     pointsAwarded: number | null;
     match: { round: string };
@@ -21,12 +23,24 @@ export type LeaderboardUserInput = {
 export type LeaderboardRow = {
   userId: number;
   username: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string;
   groupMatchPts: number;
   groupStandingPts: number;
   knockoutPts: number;
   bonusPts: number;
   total: number;
 };
+
+function buildDisplayName(u: Pick<LeaderboardUserInput, "username" | "firstName" | "lastName">): string {
+  const first = u.firstName?.trim();
+  const last = u.lastName?.trim();
+  if (first && last) return `${first} ${last}`;
+  if (first) return first;
+  if (last) return last;
+  return u.username;
+}
 
 export function summarizeLeaderboardRows(
   users: LeaderboardUserInput[]
@@ -53,6 +67,9 @@ export function summarizeLeaderboardRows(
       return {
         userId: u.id,
         username: u.username,
+        firstName: u.firstName ?? null,
+        lastName: u.lastName ?? null,
+        displayName: buildDisplayName(u),
         groupMatchPts,
         groupStandingPts,
         knockoutPts,
@@ -62,7 +79,7 @@ export function summarizeLeaderboardRows(
     })
     .sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;
-      return a.username.localeCompare(b.username, "ro", { sensitivity: "base" });
+      return a.displayName.localeCompare(b.displayName, "ro", { sensitivity: "base" });
     });
 }
 
@@ -73,6 +90,8 @@ export async function getLeaderboard(
     select: {
       id: true,
       username: true,
+      firstName: true,
+      lastName: true,
       matchPredictions: {
         select: { pointsAwarded: true, match: { select: { round: true } } },
       },
