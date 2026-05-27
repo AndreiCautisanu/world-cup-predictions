@@ -110,30 +110,30 @@ async function seed(prisma: PrismaClient): Promise<void> {
     });
     console.log(`  ✓ ${user.username}  (id=${user.id})`);
 
-    // ── random group-match predictions ──────────────────────────────────────
-    const matchUpserts = groupMatches
-      .filter((m) => m.homeTeamId !== null && m.awayTeamId !== null)
-      .map((m) => {
-        const homeScore = randInt(0, 3);
-        const awayScore = randInt(0, 3);
-        return prisma.matchPrediction.upsert({
-          where: { userId_matchId: { userId: user.id, matchId: m.id } },
-          create: { userId: user.id, matchId: m.id, homeScore, awayScore },
-          update: { homeScore, awayScore },
-        });
+    // ── random group-match predictions (sequential — 72 upserts in one
+    //    interactive transaction was hitting the 5s timeout) ──────────────
+    for (const m of groupMatches) {
+      if (m.homeTeamId === null || m.awayTeamId === null) continue;
+      const homeScore = randInt(0, 3);
+      const awayScore = randInt(0, 3);
+      await prisma.matchPrediction.upsert({
+        where: { userId_matchId: { userId: user.id, matchId: m.id } },
+        create: { userId: user.id, matchId: m.id, homeScore, awayScore },
+        update: { homeScore, awayScore },
       });
+    }
 
     // ── random group-standings predictions ─────────────────────────────────
-    const standingsUpserts = groups.flatMap((g) => {
+    for (const g of groups) {
       const ranked = shuffle(g.teams);
-      return [1, 2, 3, 4].map((position) =>
-        prisma.groupStandingPrediction.upsert({
+      for (const position of [1, 2, 3, 4] as const) {
+        await prisma.groupStandingPrediction.upsert({
           where: { userId_groupId_position: { userId: user.id, groupId: g.id, position } },
           create: { userId: user.id, groupId: g.id, position, teamId: ranked[position - 1].id },
           update: { teamId: ranked[position - 1].id },
-        })
-      );
-    });
+        });
+      }
+    }
 
     // ── random bonus prediction ────────────────────────────────────────────
     const champion = rand(allTeams);
@@ -142,7 +142,7 @@ async function seed(prisma: PrismaClient): Promise<void> {
     const darkHorse = rand(pot34Teams);
     const topScorerName = rand(TOP_SCORERS);
 
-    const bonusUpsert = prisma.bonusPrediction.upsert({
+    await prisma.bonusPrediction.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,
@@ -158,8 +158,6 @@ async function seed(prisma: PrismaClient): Promise<void> {
         topScorerName,
       },
     });
-
-    await prisma.$transaction([...matchUpserts, ...standingsUpserts, bonusUpsert]);
   }
 
   // ── spoof results on the first N GROUP_1 matches ─────────────────────────
