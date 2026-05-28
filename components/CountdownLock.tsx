@@ -5,6 +5,10 @@ import { isMatchLocked, lockTimeFor } from "@/lib/locking";
 
 type Props = {
   kickoff: Date;
+  // Lets the parent force a "locked" rendering for reasons the countdown
+  // can't infer from kickoffTime alone — e.g. the match is FINISHED (admin
+  // entered a result early or it's demo data).
+  forcedLocked?: boolean;
 };
 
 // One-minute resolution while the lock is far off, then a precise timeout that
@@ -12,7 +16,7 @@ type Props = {
 const FAR_TICK_MS = 60_000;
 const CLOSE_THRESHOLD_MS = 90 * 60 * 1000;
 
-export function CountdownLock({ kickoff }: Props) {
+export function CountdownLock({ kickoff, forcedLocked }: Props) {
   const [now, setNow] = useState<Date>(() => new Date());
 
   useEffect(() => {
@@ -41,7 +45,7 @@ export function CountdownLock({ kickoff }: Props) {
     return () => clearTimeout(timer);
   }, [kickoff]);
 
-  if (isMatchLocked(kickoff, now)) {
+  if (forcedLocked || isMatchLocked(kickoff, now)) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300 ring-1 ring-rose-500/30">
         <LockIcon />

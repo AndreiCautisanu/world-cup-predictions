@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       id: true,
       kickoffTime: true,
       round: true,
+      status: true,
       homeTeamId: true,
       awayTeamId: true,
     },
@@ -50,6 +51,19 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Echipele acestui meci nu sunt încă cunoscute" },
       { status: 409 }
+    );
+  }
+
+  // Belt-and-braces with the time lock: if an admin enters a result before
+  // the scheduled kickoff (manual override or demo data), the match flips to
+  // FINISHED with a future kickoff. The time lock wouldn't fire yet, so a
+  // user could see the actual score and update their prediction to match —
+  // and a subsequent recalc would award them perfect points. Locking on
+  // status closes that gap.
+  if (match.status !== "SCHEDULED") {
+    return NextResponse.json(
+      { error: "Meciul a început sau s-a încheiat — pronosticul e blocat" },
+      { status: 403 }
     );
   }
 

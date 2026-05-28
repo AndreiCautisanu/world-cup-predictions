@@ -22,4 +22,12 @@ describe("CountdownLock", () => {
     // 18:00 - 14:15 = 3h 45m. Lock is 1h before kickoff = 17:00, so 17:00 - 14:15 = 2h 45m
     expect(screen.getByText(/2h\s*45m/i)).toBeInTheDocument();
   });
+
+  it("renders the locked badge when forcedLocked is true even if time isn't up", () => {
+    jest.setSystemTime(new Date("2026-06-12T10:00:00Z"));
+    render(
+      <CountdownLock kickoff={new Date("2026-06-12T18:00:00Z")} forcedLocked />
+    );
+    expect(screen.getByText(/blocat/i)).toBeInTheDocument();
+  });
 });

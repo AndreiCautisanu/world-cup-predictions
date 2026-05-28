@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       id: true,
       kickoffTime: true,
       round: true,
+      status: true,
       homeTeamId: true,
       awayTeamId: true,
     },
@@ -63,6 +64,11 @@ export async function POST(req: Request) {
     }
     if (match.homeTeamId === null || match.awayTeamId === null) {
       skipped.push({ matchId: item.matchId, reason: "unresolved" });
+      continue;
+    }
+    // Same status gate as /api/predictions/match — see comment there.
+    if (match.status !== "SCHEDULED") {
+      skipped.push({ matchId: item.matchId, reason: "locked" });
       continue;
     }
     if (isMatchLocked(match.kickoffTime)) {

@@ -46,3 +46,7 @@ next-env.d.ts
 # local agent tooling
 /.claude/
 /.superpowers/
+
+# demo-data sidecar: snapshot of real kickoffs taken before backdating GROUP_1
+# to simulate finished matches. Restored on demo cleanup.
+/scripts/demo-data-snapshot.json

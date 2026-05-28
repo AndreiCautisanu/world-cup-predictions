@@ -543,7 +543,10 @@ function InfoChip({
       {open && (
         <div
           role="dialog"
-          className="absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl border border-slate-700 bg-slate-900/95 p-3 text-left shadow-2xl shadow-black/40 backdrop-blur"
+          // Render ABOVE the chip and on top of everything (z-50 beats the
+          // bottom nav at z-50 + the sticky save bar) so the breakdown is
+          // never clipped or hidden behind sibling cards.
+          className="absolute bottom-full right-0 z-50 mb-2 w-64 rounded-2xl border border-slate-700 bg-slate-900/95 p-3 text-left shadow-2xl shadow-black/40 backdrop-blur"
           onPointerDown={(e) => e.stopPropagation()}
         >
           {children}

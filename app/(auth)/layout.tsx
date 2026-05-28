@@ -4,9 +4,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <BackgroundGlow />
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
         <header className="mb-8 space-y-2 text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-300/70">
-            Comunitate privată
-          </p>
           <h1 className="font-display text-4xl font-extrabold uppercase tracking-[0.04em] text-slate-50 sm:text-5xl">
             Cupa<span className="text-emerald-400">Mondiala</span>
             <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-[0.32em] text-slate-500">
@@ -14,7 +11,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </span>
           </h1>
           <p className="mx-auto max-w-xs text-sm text-slate-400">
-            Pronosticuri pe meciuri, clasamente de grupă și bonusuri de turneu — pentru prieteni.
+            Turneul intern de pronosticuri Cupa Mondială
           </p>
         </header>
 

@@ -45,7 +45,10 @@ export function matchPredictionTier(
 export const MATCH_TIER_LABEL: Record<MatchTier, string> = {
   none: "În așteptare",
   miss: "Ratat",
-  partial: "Învingător",
+  // Universal across group (2pt: correct W/D/L) and KO (4pt: correct winner).
+  // "Învingător" reads wrong for draws — every group prediction that landed
+  // 2pts on a 0-0 / 1-1 / 2-2 etc. would have shown "Winner" with no winner.
+  partial: "Rezultat corect",
   close: "Aproape",
   exact: "Scor exact",
   perfect: "Perfect!",

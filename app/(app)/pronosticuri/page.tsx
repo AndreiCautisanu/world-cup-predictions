@@ -149,7 +149,7 @@ export default async function PronosticuriPage({
                 initialPredictsEt={userPred?.predictsEt ?? null}
                 initialPredictsPens={userPred?.predictsPens ?? null}
                 pointsAwarded={userPred?.pointsAwarded ?? null}
-                isLocked={isMatchLocked(m.kickoffTime)}
+                isLocked={m.status !== "SCHEDULED" || isMatchLocked(m.kickoffTime)}
               />
             );
           })}

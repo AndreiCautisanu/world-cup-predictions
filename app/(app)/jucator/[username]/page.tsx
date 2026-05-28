@@ -253,7 +253,7 @@ export default async function JucatorPage({
               pts={bonus.topScorerPts}
             />
             <BonusCard
-              eyebrow="Cal negru"
+              eyebrow="Surpriza turneului"
               accent="violet"
               team={bonus.darkHorse}
               pts={bonus.darkHorsePts}

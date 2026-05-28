@@ -1,48 +1,136 @@
 /**
- * Demo data injector for the leaderboard preview.
+ * Demo-data injector for the leaderboard preview.
  *
- * Creates a handful of fake users (prefixed `demo_`) with random predictions
- * on every group-stage match + every group-standings slot + a bonus pick, then
- * spoofs results for the first N GROUP_1 matches and runs the scoring chain so
- * the leaderboard has visible totals.
+ * Seeds ten fake users (prefixed `demo_`), each with predictions on every
+ * group-stage match, every group-standings slot, and a bonus pick. Each user
+ * has a distinct "persona" so the leaderboard has visible variety (some lean
+ * defensive, some over-call goals, one is a deliberate lucky-guesser, etc).
  *
- * Run from repo root:
+ * Then spoofs results for the entire GROUP_1 (matchday-1) round — all ~24
+ * matches — and BACKDATES their kickoffs so:
+ *   - isMatchLocked fires (time-based lock layer)
+ *   - status === FINISHED (status-based lock layer)
+ *   - isTournamentLocked fires (bonus + standings hidden from late joiners)
+ *
+ * The original kickoffs are snapshotted to scripts/demo-data-snapshot.json so
+ * cleanup can restore them. If the snapshot is missing, cleanup falls back
+ * to clearing results and the user can re-run `db:bootstrap` to refetch real
+ * fixtures from football-data.org.
+ *
+ * Usage:
  *   railway run --service Postgres npx tsx scripts/demo-data.ts seed
  *   railway run --service Postgres npx tsx scripts/demo-data.ts cleanup
- *
- * Reads DATABASE_PUBLIC_URL injected by `railway run --service Postgres`.
- * Cleanup removes the demo_ users (and cascade-deletes their predictions
- * manually since the schema has no onDelete: Cascade) and clears the spoofed
- * match results — which also nulls pointsAwarded on any real-user predictions
- * for those matches.
  */
 
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
+import fs from "node:fs";
+import path from "node:path";
 import { calculateAndStorePoints, clearMatchResult } from "../lib/recalc";
 
 const DEMO_USERNAME_PREFIX = "demo_";
 const DEMO_PASSWORD = "demo1234";
+const SNAPSHOT_PATH = path.resolve(__dirname, "demo-data-snapshot.json");
+// Anchor: first GROUP_1 match should kick off this many days before "now".
+// 3 days leaves room for MD2/MD3 to remain in the future relative to the
+// real WC schedule (which clusters MD1/2/3 within a week per group).
+const DAYS_AGO_FOR_FIRST_MD1 = 3;
 
-const DEMO_USERS = [
-  { firstName: "Mihaela", lastName: "Ionescu", username: "demo_mihaela_i" },
-  { firstName: "Vlad", lastName: "Popescu", username: "demo_vlad_p" },
-  { firstName: "Ioana", lastName: "Stan", username: "demo_ioana_s" },
-  { firstName: "Răzvan", lastName: "Dumitrescu", username: "demo_razvan_d" },
-  { firstName: "Cătălin", lastName: "Munteanu", username: "demo_catalin_m" },
-  { firstName: "Elena", lastName: "Constantinescu", username: "demo_elena_c" },
-  { firstName: "Bogdan", lastName: "Marin", username: "demo_bogdan_m" },
-  { firstName: "Andreea", lastName: "Georgescu", username: "demo_andreea_g" },
-] as const;
+// ── Personas ──────────────────────────────────────────────────────────────
+// Each persona has a `score()` that produces an [home, away] prediction
+// given the actual match (for the lucky-guesser) or just at random.
 
-const SPOOF_RESULTS: { homeScore: number; awayScore: number }[] = [
-  { homeScore: 2, awayScore: 1 },
-  { homeScore: 1, awayScore: 0 },
-  { homeScore: 0, awayScore: 0 },
-  { homeScore: 3, awayScore: 1 },
-  { homeScore: 2, awayScore: 2 },
-  { homeScore: 1, awayScore: 1 },
+type ActualScore = { home: number; away: number };
+type Predictor = (rng: Rng, actual?: ActualScore) => [number, number];
+
+type Persona = {
+  username: string;
+  firstName: string;
+  lastName: string;
+  predict: Predictor;
+};
+
+const PERSONAS: Persona[] = [
+  {
+    username: "demo_mihaela_i",
+    firstName: "Mihaela",
+    lastName: "Ionescu",
+    // Conservative — 1-0, 1-1, 2-1 mostly.
+    predict: (r) => r.pick([[1, 0], [1, 1], [2, 1], [0, 0], [0, 1]]),
+  },
+  {
+    username: "demo_vlad_p",
+    firstName: "Vlad",
+    lastName: "Popescu",
+    // Draws-lover.
+    predict: (r) => r.pick([[1, 1], [2, 2], [0, 0], [1, 1], [3, 3]]),
+  },
+  {
+    username: "demo_ioana_s",
+    firstName: "Ioana",
+    lastName: "Stan",
+    // Goalfest optimist.
+    predict: (r) => r.pick([[3, 2], [2, 3], [3, 1], [4, 2], [2, 4]]),
+  },
+  {
+    username: "demo_razvan_d",
+    firstName: "Răzvan",
+    lastName: "Dumitrescu",
+    // Defensive — 0-0 and 1-0 forever.
+    predict: (r) => r.pick([[0, 0], [1, 0], [0, 1], [1, 1], [0, 0]]),
+  },
+  {
+    username: "demo_catalin_m",
+    firstName: "Cătălin",
+    lastName: "Munteanu",
+    // Chaos goblin — anything 0..4.
+    predict: (r) => [r.int(0, 4), r.int(0, 4)],
+  },
+  {
+    username: "demo_elena_c",
+    firstName: "Elena",
+    lastName: "Constantinescu",
+    // Slight home-team bias, modest scores.
+    predict: (r) => [r.int(1, 3), r.int(0, 2)],
+  },
+  {
+    username: "demo_bogdan_m",
+    firstName: "Bogdan",
+    lastName: "Marin",
+    // Lucky guesser — copies the actual ~60% of the time, otherwise random.
+    predict: (r, actual) => {
+      if (actual && r.float() < 0.6) return [actual.home, actual.away];
+      return [r.int(0, 3), r.int(0, 3)];
+    },
+  },
+  {
+    username: "demo_andreea_g",
+    firstName: "Andreea",
+    lastName: "Georgescu",
+    // Slight away-team bias.
+    predict: (r) => [r.int(0, 2), r.int(1, 3)],
+  },
+  {
+    username: "demo_dragos_v",
+    firstName: "Dragoș",
+    lastName: "Vasile",
+    // All 2-1's — comically formulaic.
+    predict: () => [2, 1],
+  },
+  {
+    username: "demo_cristina_r",
+    firstName: "Cristina",
+    lastName: "Radu",
+    // Half-correct sniper — gets one side close to right.
+    predict: (r, actual) => {
+      if (!actual) return [r.int(0, 3), r.int(0, 3)];
+      const flip = r.float() < 0.5;
+      return flip
+        ? [actual.home, r.int(0, 3)]
+        : [r.int(0, 3), actual.away];
+    },
+  },
 ];
 
 const TOP_SCORERS = [
@@ -52,19 +140,49 @@ const TOP_SCORERS = [
   "Vinicius Junior",
   "Lautaro Martínez",
   "Lamine Yamal",
+  "Jude Bellingham",
+  "Florian Wirtz",
 ];
 
-function rand<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+// ── Deterministic-per-user RNG ────────────────────────────────────────────
+class Rng {
+  private state: number;
+  constructor(seed: number) {
+    // Mulberry32 — small, fast, OK for demo-data variety.
+    this.state = seed >>> 0;
+  }
+  float(): number {
+    let t = (this.state += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  int(min: number, max: number): number {
+    return Math.floor(this.float() * (max - min + 1)) + min;
+  }
+  pick<T>(items: readonly T[]): T {
+    return items[Math.floor(this.float() * items.length)];
+  }
+  shuffle<T>(items: T[]): T[] {
+    const out = [...items];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(this.float() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
 }
-function randInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-function shuffle<T>(arr: T[]): T[] {
-  const out = [...arr];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+
+// ── Realistic actual scores ────────────────────────────────────────────────
+// Weighted: most matches end 0-2 goals per side, occasional blowouts.
+function generateActualScores(rng: Rng, count: number): ActualScore[] {
+  const distribution: number[] = [0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5];
+  const out: ActualScore[] = [];
+  for (let i = 0; i < count; i++) {
+    out.push({
+      home: rng.pick(distribution),
+      away: rng.pick(distribution),
+    });
   }
   return out;
 }
@@ -85,37 +203,104 @@ async function seed(prisma: PrismaClient): Promise<void> {
 
   const groupMatches = await prisma.match.findMany({
     where: { round: { in: ["GROUP_1", "GROUP_2", "GROUP_3"] } },
-    select: { id: true, homeTeamId: true, awayTeamId: true },
+    select: { id: true, round: true, homeTeamId: true, awayTeamId: true, kickoffTime: true },
+    orderBy: { kickoffTime: "asc" },
   });
-  console.log(`  ${groups.length} groups · ${allTeams.length} teams · ${groupMatches.length} group matches`);
+  console.log(
+    `  ${groups.length} groups · ${allTeams.length} teams · ${groupMatches.length} group matches`
+  );
 
+  // ── Backdate GROUP_1 kickoffs ───────────────────────────────────────────
+  const md1 = groupMatches.filter((m) => m.round === "GROUP_1");
+  if (md1.length === 0) {
+    console.log("⚠️  No GROUP_1 matches found — has the bootstrap been run?");
+    return;
+  }
+  const earliestMd1 = md1.reduce((min, m) =>
+    m.kickoffTime < min.kickoffTime ? m : min
+  );
+  const anchor = new Date();
+  anchor.setUTCDate(anchor.getUTCDate() - DAYS_AGO_FOR_FIRST_MD1);
+  const offsetMs = anchor.getTime() - earliestMd1.kickoffTime.getTime();
+
+  // Snapshot originals before mutating, then shift each kickoff by the same
+  // offset so the relative spacing within MD1 is preserved.
+  const snapshot: Record<string, string> = {};
+  for (const m of md1) {
+    snapshot[String(m.id)] = m.kickoffTime.toISOString();
+  }
+  fs.writeFileSync(SNAPSHOT_PATH, JSON.stringify(snapshot, null, 2));
+  console.log(`  ✓ Snapshot of ${md1.length} original kickoffs → ${path.basename(SNAPSHOT_PATH)}`);
+
+  console.log(`→ Backdating ${md1.length} GROUP_1 kickoffs by ~${Math.round(offsetMs / 86_400_000)} days…`);
+  for (const m of md1) {
+    await prisma.match.update({
+      where: { id: m.id },
+      data: { kickoffTime: new Date(m.kickoffTime.getTime() + offsetMs) },
+    });
+  }
+
+  // ── Spoof MD1 actual scores (deterministic via fixed seed) ──────────────
+  const actualRng = new Rng(0xCAFE);
+  const playableMd1 = md1.filter(
+    (m) => m.homeTeamId !== null && m.awayTeamId !== null
+  );
+  const actuals = generateActualScores(actualRng, playableMd1.length);
+  const actualByMatchId = new Map<number, ActualScore>();
+  for (let i = 0; i < playableMd1.length; i++) {
+    actualByMatchId.set(playableMd1[i].id, actuals[i]);
+  }
+
+  console.log(`→ Spoofing ${playableMd1.length} GROUP_1 results…`);
+  for (let i = 0; i < playableMd1.length; i++) {
+    const m = playableMd1[i];
+    const a = actuals[i];
+    await prisma.match.update({
+      where: { id: m.id },
+      data: {
+        homeScore: a.home,
+        awayScore: a.away,
+        wentToEt: false,
+        wentToPens: false,
+        status: "FINISHED",
+      },
+    });
+  }
+
+  // ── Upsert demo users + their predictions ───────────────────────────────
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
-  console.log(`\n→ Upserting ${DEMO_USERS.length} demo users…`);
-  for (const u of DEMO_USERS) {
+  console.log(`\n→ Upserting ${PERSONAS.length} demo users…`);
+  for (let pIdx = 0; pIdx < PERSONAS.length; pIdx++) {
+    const persona = PERSONAS[pIdx];
+    const rng = new Rng(0xBEEF + pIdx);
+
     const user = await prisma.user.upsert({
-      where: { username: u.username },
+      where: { username: persona.username },
       create: {
-        username: u.username,
-        firstName: u.firstName,
-        lastName: u.lastName,
+        username: persona.username,
+        firstName: persona.firstName,
+        lastName: persona.lastName,
         passwordHash: hash,
         isAdmin: false,
       },
       update: {
-        firstName: u.firstName,
-        lastName: u.lastName,
+        firstName: persona.firstName,
+        lastName: persona.lastName,
         passwordHash: hash,
       },
     });
-    console.log(`  ✓ ${user.username}  (id=${user.id})`);
+    console.log(`  ✓ ${persona.username}  (${persona.firstName} ${persona.lastName})`);
 
-    // ── random group-match predictions (sequential — 72 upserts in one
-    //    interactive transaction was hitting the 5s timeout) ──────────────
+    // Match predictions across all 72 group matches. Past MD1 matches get
+    // the persona's prediction informed by the actual score (lucky guesser);
+    // MD2/MD3 are open-ended random per persona.
     for (const m of groupMatches) {
       if (m.homeTeamId === null || m.awayTeamId === null) continue;
-      const homeScore = randInt(0, 3);
-      const awayScore = randInt(0, 3);
+      const actual = actualByMatchId.get(m.id);
+      const [h, a] = persona.predict(rng, actual);
+      const homeScore = Math.max(0, Math.min(20, Math.floor(h)));
+      const awayScore = Math.max(0, Math.min(20, Math.floor(a)));
       await prisma.matchPrediction.upsert({
         where: { userId_matchId: { userId: user.id, matchId: m.id } },
         create: { userId: user.id, matchId: m.id, homeScore, awayScore },
@@ -123,9 +308,9 @@ async function seed(prisma: PrismaClient): Promise<void> {
       });
     }
 
-    // ── random group-standings predictions ─────────────────────────────────
+    // Group standings — shuffled per persona.
     for (const g of groups) {
-      const ranked = shuffle(g.teams);
+      const ranked = rng.shuffle(g.teams);
       for (const position of [1, 2, 3, 4] as const) {
         await prisma.groupStandingPrediction.upsert({
           where: { userId_groupId_position: { userId: user.id, groupId: g.id, position } },
@@ -135,12 +320,12 @@ async function seed(prisma: PrismaClient): Promise<void> {
       }
     }
 
-    // ── random bonus prediction ────────────────────────────────────────────
-    const champion = rand(allTeams);
-    let runnerUp = rand(allTeams);
-    while (runnerUp.id === champion.id) runnerUp = rand(allTeams);
-    const darkHorse = rand(pot34Teams);
-    const topScorerName = rand(TOP_SCORERS);
+    // Bonus pick.
+    const champion = rng.pick(allTeams);
+    let runnerUp = rng.pick(allTeams);
+    while (runnerUp.id === champion.id) runnerUp = rng.pick(allTeams);
+    const darkHorse = rng.pick(pot34Teams);
+    const topScorerName = rng.pick(TOP_SCORERS);
 
     await prisma.bonusPrediction.upsert({
       where: { userId: user.id },
@@ -160,39 +345,17 @@ async function seed(prisma: PrismaClient): Promise<void> {
     });
   }
 
-  // ── spoof results on the first N GROUP_1 matches ─────────────────────────
-  const targets = await prisma.match.findMany({
-    where: {
-      round: "GROUP_1",
-      homeTeam: { isNot: null },
-      awayTeam: { isNot: null },
-    },
-    include: { homeTeam: true, awayTeam: true },
-    orderBy: { kickoffTime: "asc" },
-    take: SPOOF_RESULTS.length,
-  });
-
-  console.log(`\n→ Spoofing ${targets.length} GROUP_1 results and re-scoring…`);
-  for (let i = 0; i < targets.length; i++) {
-    const m = targets[i];
-    const r = SPOOF_RESULTS[i];
-    await prisma.match.update({
-      where: { id: m.id },
-      data: {
-        homeScore: r.homeScore,
-        awayScore: r.awayScore,
-        wentToEt: false,
-        wentToPens: false,
-        status: "FINISHED",
-      },
-    });
+  // ── Score everything in one pass (after users + predictions exist) ──────
+  console.log(`\n→ Computing points for ${playableMd1.length} GROUP_1 matches…`);
+  for (const m of playableMd1) {
     await calculateAndStorePoints(prisma, m.id);
-    console.log(
-      `  ✓ ${m.homeTeam!.name} ${r.homeScore}-${r.awayScore} ${m.awayTeam!.name}`
-    );
   }
 
-  console.log("\n✅ Demo data seeded. Visit /clasament to see the leaderboard.");
+  console.log("\n✅ Demo data seeded.");
+  console.log(`   • ${PERSONAS.length} users  • all GROUP_1 (${playableMd1.length}) matches FINISHED + backdated`);
+  console.log("   • Visit /clasament to see the leaderboard.");
+  console.log("   • Try /pronosticuri — GROUP_1 cards show 'Blocat' (status + time).");
+  console.log("   • Try /pronosticuri/bonus — locked (tournament started).");
 }
 
 async function cleanup(prisma: PrismaClient): Promise<void> {
@@ -206,6 +369,9 @@ async function cleanup(prisma: PrismaClient): Promise<void> {
   if (users.length > 0) {
     const userIds = users.map((u) => u.id);
     console.log("\n→ Deleting demo predictions + users…");
+    // With the cascade migration in place, deleting users would also delete
+    // predictions automatically — but explicit deletes still work and make
+    // the script idempotent across pre/post-migration databases.
     await prisma.$transaction([
       prisma.matchPrediction.deleteMany({ where: { userId: { in: userIds } } }),
       prisma.groupStandingPrediction.deleteMany({ where: { userId: { in: userIds } } }),
@@ -215,22 +381,39 @@ async function cleanup(prisma: PrismaClient): Promise<void> {
     console.log("  ✓ removed.");
   }
 
-  console.log(`\n→ Clearing spoofed GROUP_1 results (the first ${SPOOF_RESULTS.length})…`);
-  const targets = await prisma.match.findMany({
-    where: {
-      round: "GROUP_1",
-      homeTeam: { isNot: null },
-      awayTeam: { isNot: null },
-    },
+  // Clear GROUP_1 results (also nulls pointsAwarded for any real users who
+  // had predicted those matches).
+  const md1Finished = await prisma.match.findMany({
+    where: { round: "GROUP_1", status: "FINISHED" },
     include: { homeTeam: true, awayTeam: true },
     orderBy: { kickoffTime: "asc" },
-    take: SPOOF_RESULTS.length,
   });
-  for (const m of targets) {
-    if (m.status === "FINISHED") {
+  if (md1Finished.length > 0) {
+    console.log(`\n→ Clearing ${md1Finished.length} spoofed GROUP_1 results…`);
+    for (const m of md1Finished) {
       await clearMatchResult(prisma, m.id);
-      console.log(`  ✓ cleared ${m.homeTeam!.name} vs ${m.awayTeam!.name}`);
     }
+  }
+
+  // Restore original kickoffs from snapshot if present.
+  if (fs.existsSync(SNAPSHOT_PATH)) {
+    const raw = fs.readFileSync(SNAPSHOT_PATH, "utf8");
+    const snapshot: Record<string, string> = JSON.parse(raw);
+    const entries = Object.entries(snapshot);
+    console.log(`\n→ Restoring ${entries.length} original GROUP_1 kickoffs…`);
+    for (const [id, iso] of entries) {
+      await prisma.match.update({
+        where: { id: Number(id) },
+        data: { kickoffTime: new Date(iso) },
+      });
+    }
+    fs.unlinkSync(SNAPSHOT_PATH);
+    console.log("  ✓ kickoffs restored + snapshot deleted.");
+  } else {
+    console.log(
+      "\n⚠️  No kickoff snapshot found. If GROUP_1 kickoffs were backdated by a previous seed,\n" +
+        "    re-run `npm run db:bootstrap` to refetch real fixtures from football-data.org."
+    );
   }
 
   console.log("\n✅ Demo data removed.");

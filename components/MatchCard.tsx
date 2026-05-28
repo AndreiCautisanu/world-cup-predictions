@@ -275,7 +275,7 @@ export function MatchCard(props: Props) {
           {!props.isLocked && isDirty && (
             <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" aria-label="nesalvat" />
           )}
-          <CountdownLock kickoff={new Date(props.kickoffTime)} />
+          <CountdownLock kickoff={new Date(props.kickoffTime)} forcedLocked={props.isLocked} />
         </div>
       </header>
 

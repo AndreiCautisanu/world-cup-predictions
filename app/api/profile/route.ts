@@ -4,6 +4,12 @@ import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
+
+// Password-change attempts are throttled per (user, IP) to make brute-forcing
+// the current-password gate impractical even with a stolen session cookie.
+const PASSWORD_LIMIT = 5;
+const PASSWORD_WINDOW_MS = 10 * 60 * 1000;
 
 const nameField = z
   .string()
@@ -48,6 +54,22 @@ export async function POST(req: Request) {
   }
 
   // action === "password"
+  const ip = clientIp(req);
+  const limit = rateLimit(
+    `profile-password:${userId}:${ip}`,
+    PASSWORD_LIMIT,
+    PASSWORD_WINDOW_MS
+  );
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Prea multe încercări. Revino mai târziu." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds) },
+      }
+    );
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { passwordHash: true },
