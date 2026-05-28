@@ -3,6 +3,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CountdownLock } from "./CountdownLock";
 import { isKnockoutRound } from "@/lib/predictions";
+import {
+  matchPredictionTier,
+  MATCH_TIER_LABEL,
+  type MatchTier,
+} from "@/lib/match-tier";
+
+// MatchCard's own tier styling. Distinct from the /jucator variant because
+// the card chrome already has an accent stripe + ring system to slot into.
+const TIER_CHROME: Record<Exclude<MatchTier, "none">, string> = {
+  miss: "border-rose-500/45 bg-rose-500/[0.05] ring-1 ring-rose-500/20",
+  partial: "border-amber-500/45 bg-amber-500/[0.05] ring-1 ring-amber-500/20",
+  close: "border-sky-500/45 bg-sky-500/[0.05] ring-1 ring-sky-500/20",
+  exact: "border-emerald-500/50 bg-emerald-500/[0.06] ring-1 ring-emerald-500/25",
+  perfect:
+    "border-yellow-300/60 bg-yellow-400/[0.08] ring-1 ring-yellow-300/30 shadow-[0_0_28px_-6px_rgba(250,204,21,0.45)]",
+};
+const TIER_STRIPE: Record<Exclude<MatchTier, "none">, string> = {
+  miss: "bg-gradient-to-b from-rose-400 to-rose-600",
+  partial: "bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500",
+  close: "bg-gradient-to-b from-sky-400 to-sky-600",
+  exact: "bg-gradient-to-b from-emerald-400 to-emerald-600",
+  perfect: "bg-gradient-to-b from-yellow-200 via-yellow-300 to-amber-400",
+};
+const TIER_BADGE: Record<Exclude<MatchTier, "none">, string> = {
+  miss: "border-rose-500/40 bg-rose-500/15 text-rose-200",
+  partial: "border-amber-500/40 bg-amber-500/15 text-amber-200",
+  close: "border-sky-500/40 bg-sky-500/15 text-sky-200",
+  exact: "border-emerald-400/50 bg-emerald-500/20 text-emerald-200",
+  perfect:
+    "border-yellow-300/60 bg-yellow-400/20 text-yellow-100 shadow-[0_0_18px_-2px_rgba(250,204,21,0.45)]",
+};
 
 type Team = { name: string; flagEmoji: string };
 
@@ -132,8 +163,15 @@ export function MatchCard(props: Props) {
     return () => window.removeEventListener(SAVE_ALL_EVENT, handler);
   }, [props.isLocked, isPlaceholder]);
 
-  // Visual state for the card chrome
+  // Scored predictions override locked/saved chrome with a tier-based palette
+  // (rose miss → amber partial → sky close → emerald exact → gold perfect).
+  // When pointsAwarded is null the card uses its standard saved/locked look.
+  const hasPoints = props.pointsAwarded !== null && props.pointsAwarded !== undefined;
+  const tier: MatchTier = hasPoints ? matchPredictionTier(props.pointsAwarded) : "none";
+  const scoredTier = tier !== "none" ? (tier as Exclude<MatchTier, "none">) : null;
+
   const chrome = (() => {
+    if (scoredTier) return TIER_CHROME[scoredTier];
     if (props.isLocked) return "border-slate-800/80 opacity-80";
     if (isDirty && hasSavedEver) return "border-amber-400/50 bg-amber-500/[0.04] ring-1 ring-amber-400/15";
     if (isDirty && !hasSavedEver) return "border-amber-400/35 bg-amber-500/[0.025]";
@@ -159,15 +197,17 @@ export function MatchCard(props: Props) {
       <span
         aria-hidden
         className={`absolute inset-y-0 left-0 w-[3px] ${
-          props.isLocked
-            ? "bg-slate-700"
-            : isDirty
-              ? "bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500"
-              : hasSavedEver
-                ? "bg-gradient-to-b from-emerald-400 to-emerald-600"
-                : isKnockout
-                  ? "bg-gradient-to-b from-slate-500 via-slate-600 to-slate-700"
-                  : "bg-gradient-to-b from-slate-600 to-slate-800"
+          scoredTier
+            ? TIER_STRIPE[scoredTier]
+            : props.isLocked
+              ? "bg-slate-700"
+              : isDirty
+                ? "bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500"
+                : hasSavedEver
+                  ? "bg-gradient-to-b from-emerald-400 to-emerald-600"
+                  : isKnockout
+                    ? "bg-gradient-to-b from-slate-500 via-slate-600 to-slate-700"
+                    : "bg-gradient-to-b from-slate-600 to-slate-800"
         }`}
       />
 
@@ -272,10 +312,18 @@ export function MatchCard(props: Props) {
             </div>
           )}
 
-          {props.pointsAwarded !== null && props.pointsAwarded !== undefined && (
-            <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
-              +{props.pointsAwarded} puncte
-            </p>
+          {scoredTier && (
+            <div className="mt-3 flex justify-center">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] ${TIER_BADGE[scoredTier]}`}
+              >
+                <span className="tabular-nums">
+                  {props.pointsAwarded === 0 ? "0 pct" : `+${props.pointsAwarded} pct`}
+                </span>
+                <span aria-hidden className="opacity-60">·</span>
+                <span>{MATCH_TIER_LABEL[tier]}</span>
+              </span>
+            </div>
           )}
         </div>
       )}

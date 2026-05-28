@@ -5,6 +5,37 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isTournamentLocked, tournamentLockTime } from "@/lib/locking";
 import { buildDisplayName, summarizeLeaderboardRows } from "@/lib/leaderboard";
+import { matchPredictionTier, MATCH_TIER_LABEL, type MatchTier } from "@/lib/match-tier";
+
+// Tier → Tailwind classes for the prediction tile, the points badge,
+// and the eyebrow label. Kept inline (not exported) so the visual
+// language stays scoped to this page; MatchCard owns its own variant.
+const TIER_TILE: Record<MatchTier, string> = {
+  none: "border-slate-700/40 bg-slate-900/40 text-slate-400",
+  miss: "border-rose-500/40 bg-rose-500/10 text-rose-200",
+  partial: "border-amber-500/40 bg-amber-500/10 text-amber-200",
+  close: "border-sky-500/40 bg-sky-500/10 text-sky-200",
+  exact: "border-emerald-400/50 bg-emerald-500/10 text-emerald-200",
+  perfect:
+    "border-yellow-300/60 bg-yellow-400/15 text-yellow-100 shadow-[0_0_28px_-6px_rgba(250,204,21,0.55)]",
+};
+const TIER_EYEBROW: Record<MatchTier, string> = {
+  none: "text-slate-500",
+  miss: "text-rose-300/80",
+  partial: "text-amber-300/80",
+  close: "text-sky-300/80",
+  exact: "text-emerald-300/80",
+  perfect: "text-yellow-200/90",
+};
+const TIER_BADGE: Record<MatchTier, string> = {
+  none: "border-slate-700/60 bg-slate-900/60 text-slate-500",
+  miss: "border-rose-500/40 bg-rose-500/15 text-rose-200",
+  partial: "border-amber-500/40 bg-amber-500/15 text-amber-200",
+  close: "border-sky-500/40 bg-sky-500/15 text-sky-200",
+  exact: "border-emerald-400/50 bg-emerald-500/20 text-emerald-200",
+  perfect:
+    "border-yellow-300/60 bg-yellow-400/20 text-yellow-100 shadow-[0_0_18px_-2px_rgba(250,204,21,0.45)]",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -323,6 +354,7 @@ function MatchPredictionRow({
   const m = prediction.match;
   const finished = m.status === "FINISHED" && m.homeScore !== null && m.awayScore !== null;
   const meta = m.group?.name ? `Grupa ${m.group.name}` : ROUND_LABELS[m.round];
+  const tier = matchPredictionTier(prediction.pointsAwarded);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/40">
@@ -333,19 +365,19 @@ function MatchPredictionRow({
         <span className="text-slate-700">·</span>
         <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">{meta}</span>
         <div className="ml-auto">
-          <PointsBadge pts={prediction.pointsAwarded} />
+          <TierBadge tier={tier} pts={prediction.pointsAwarded} />
         </div>
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3 sm:gap-4">
         <TeamLabel team={m.homeTeam} align="right" />
         <div className="flex flex-col items-center gap-1">
-          <div className="flex h-10 w-16 items-center justify-center gap-1 rounded-lg border border-emerald-400/20 bg-emerald-500/5 text-emerald-200">
+          <div className={`flex h-10 w-16 items-center justify-center gap-1 rounded-lg border ${TIER_TILE[tier]}`}>
             <span className="font-display text-base font-extrabold leading-none tabular-nums">{prediction.homeScore}</span>
-            <span className="font-display text-xs font-bold leading-none text-emerald-400/60">·</span>
+            <span className="font-display text-xs font-bold leading-none opacity-60">·</span>
             <span className="font-display text-base font-extrabold leading-none tabular-nums">{prediction.awayScore}</span>
           </div>
-          <span className="text-[9px] font-semibold uppercase tracking-[0.22em] text-emerald-300/70">
+          <span className={`text-[9px] font-semibold uppercase tracking-[0.22em] ${TIER_EYEBROW[tier]}`}>
             Predicție
           </span>
         </div>
@@ -376,6 +408,26 @@ function MatchPredictionRow({
   );
 }
 
+function TierBadge({ tier, pts }: { tier: MatchTier; pts: number | null }) {
+  // Compact form: "+X · Label" so the badge encodes both the precise score
+  // and the qualitative tier at a glance.
+  const label = MATCH_TIER_LABEL[tier];
+  const ptsText = pts === null ? "—" : pts === 0 ? "0" : `+${pts}`;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${TIER_BADGE[tier]}`}
+    >
+      <span className="tabular-nums">{ptsText}</span>
+      {tier !== "none" && (
+        <>
+          <span aria-hidden className="opacity-60">·</span>
+          <span>{label}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
 function TeamLabel({
   team,
   align,
@@ -403,6 +455,9 @@ function TeamLabel({
 }
 
 function PointsBadge({ pts }: { pts: number | null }) {
+  // Binary hit/miss/pending badge for bonus + standings rows. For per-match
+  // predictions use <TierBadge> instead — it grades the gradient between
+  // "winner only" and "perfect".
   if (pts === null) {
     return (
       <span className="rounded-full border border-slate-700/60 bg-slate-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -412,8 +467,8 @@ function PointsBadge({ pts }: { pts: number | null }) {
   }
   if (pts === 0) {
     return (
-      <span className="rounded-full border border-slate-700/60 bg-slate-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-        0 pct
+      <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-200">
+        Ratat
       </span>
     );
   }
