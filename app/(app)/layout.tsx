@@ -1,9 +1,10 @@
 import { BottomNav } from "@/components/BottomNav";
 import { auth } from "@/auth";
+import { getSessionUser } from "@/lib/session";
 import Link from "next/link";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
+  const user = getSessionUser(await auth());
 
   return (
     <div className="min-h-screen pb-24">
@@ -17,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               2026
             </span>
           </Link>
-          {session?.user?.isAdmin && (
+          {user?.isAdmin && (
             <Link
               href="/admin/rezultate"
               className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200 transition hover:border-amber-400/60"

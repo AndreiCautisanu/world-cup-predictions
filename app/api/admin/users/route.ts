@@ -3,6 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 
 const schema = z
   .object({
@@ -15,8 +16,8 @@ const schema = z
   });
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.isAdmin) {
+  const user = getSessionUser(await auth());
+  if (!user?.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

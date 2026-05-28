@@ -26,6 +26,11 @@ function getPrisma(): PrismaClient {
 
 export const prisma = new Proxy({} as PrismaClient, {
   get(_target, prop) {
+    // The Proxy forwards arbitrary PrismaClient property access, so `any` is
+    // unavoidable here without re-declaring every delegate. Limited to this
+    // one indirection — every callsite still sees the proper PrismaClient
+    // type.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (getPrisma() as any)[prop];
   },
 });

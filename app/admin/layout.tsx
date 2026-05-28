@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { getSessionUser } from "@/lib/session";
 
 const TABS = [
   { href: "/admin/rezultate", label: "Rezultate" },
@@ -9,8 +10,8 @@ const TABS = [
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  if (!session?.user?.isAdmin) redirect("/clasament");
+  const user = getSessionUser(await auth());
+  if (!user?.isAdmin) redirect("/clasament");
 
   return (
     <div className="min-h-screen pb-20">

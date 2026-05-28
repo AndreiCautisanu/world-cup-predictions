@@ -11,9 +11,9 @@ describe("groupMatchPoints", () => {
     expect(groupMatchPoints({ ph: 0, pa: 0 }, { ah: 0, aa: 0 })).toBe(7);
   });
 
-  it("returns 5 for correct result + one team's goals", () => {
-    expect(groupMatchPoints({ ph: 2, pa: 1 }, { ah: 2, aa: 0 })).toBe(5);
-    expect(groupMatchPoints({ ph: 2, pa: 1 }, { ah: 3, aa: 1 })).toBe(5);
+  it("returns 4 for correct result + one team's goals", () => {
+    expect(groupMatchPoints({ ph: 2, pa: 1 }, { ah: 2, aa: 0 })).toBe(4);
+    expect(groupMatchPoints({ ph: 2, pa: 1 }, { ah: 3, aa: 1 })).toBe(4);
   });
 
   it("returns 2 for correct result only", () => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 import { isTournamentLocked, tournamentLockTime } from "@/lib/locking";
 import { validateBonusSelection } from "@/lib/bonus";
 
@@ -13,8 +14,7 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await auth();
-  const userId = (session?.user as { id?: number } | undefined)?.id;
+  const userId = getSessionUser(await auth())?.id;
   if (!userId) {
     return NextResponse.json({ error: "Neautentificat" }, { status: 401 });
   }

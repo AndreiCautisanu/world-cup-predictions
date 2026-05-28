@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 import { calculateAndStorePoints, clearMatchResult } from "@/lib/recalc";
 
 const schema = z.discriminatedUnion("action", [
@@ -22,8 +23,8 @@ const schema = z.discriminatedUnion("action", [
 ]);
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.isAdmin) {
+  const user = getSessionUser(await auth());
+  if (!user?.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -51,6 +52,38 @@ export async function POST(req: Request) {
   // action === "save"
   const { homeScore, awayScore, wentToEt, wentToPens, homeTeamId, awayTeamId } = parsed.data;
   const isKnockout = !["GROUP_1", "GROUP_2", "GROUP_3"].includes(existing.round);
+
+  // Resolve the team IDs that will be persisted (override > existing) and
+  // verify they're distinct and that any supplied override actually points
+  // at a real team. Prisma's FK would catch a bogus id eventually, but a
+  // clean 400 is friendlier than a generic 500.
+  const effectiveHomeId = homeTeamId ?? existing.homeTeamId;
+  const effectiveAwayId = awayTeamId ?? existing.awayTeamId;
+  if (
+    effectiveHomeId !== null &&
+    effectiveAwayId !== null &&
+    effectiveHomeId === effectiveAwayId
+  ) {
+    return NextResponse.json(
+      { error: "Echipa de acasă nu poate fi aceeași cu echipa oaspete" },
+      { status: 400 }
+    );
+  }
+  const overrideIds = [homeTeamId, awayTeamId].filter(
+    (id): id is number => typeof id === "number"
+  );
+  if (overrideIds.length > 0) {
+    const teams = await prisma.team.findMany({
+      where: { id: { in: overrideIds } },
+      select: { id: true },
+    });
+    if (teams.length !== new Set(overrideIds).size) {
+      return NextResponse.json(
+        { error: "Echipă invalidă în override" },
+        { status: 400 }
+      );
+    }
+  }
 
   await prisma.match.update({
     where: { id: matchId },

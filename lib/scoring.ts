@@ -25,7 +25,7 @@ export function groupMatchPoints(pred: MatchScore, actual: MatchResult): number 
 
   if (predictedResult !== actualResult) return 0;
   if (pred.ph === actual.ah && pred.pa === actual.aa) return 7;
-  if (pred.ph === actual.ah || pred.pa === actual.aa) return 5;
+  if (pred.ph === actual.ah || pred.pa === actual.aa) return 4;
   return 2;
 }
 

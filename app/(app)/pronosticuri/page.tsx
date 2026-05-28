@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Round } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 import { isMatchLocked } from "@/lib/locking";
 import { MatchCard } from "@/components/MatchCard";
 import { MatchdaySaveAll } from "@/components/MatchdaySaveAll";
@@ -28,8 +29,7 @@ export default async function PronosticuriPage({
 }: {
   searchParams: Promise<{ md?: string }>;
 }) {
-  const session = await auth();
-  const userId = (session?.user as { id?: number } | undefined)?.id;
+  const userId = getSessionUser(await auth())?.id;
   if (!userId) redirect("/login");
 
   const params = await searchParams;

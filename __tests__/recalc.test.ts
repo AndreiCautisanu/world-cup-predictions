@@ -10,13 +10,22 @@ describe("computePointsForPrediction", () => {
     ).toBe(7);
   });
 
-  it("scores a group match by correct-winner-only rule", () => {
+  it("scores a group match by correct-result + one-side rule", () => {
     expect(
       computePointsForPrediction(
         { round: "GROUP_2", homeScore: 3, awayScore: 0, wentToEt: null, wentToPens: null },
         { homeScore: 1, awayScore: 0, predictsEt: null, predictsPens: null }
       )
-    ).toBe(5);
+    ).toBe(4);
+  });
+
+  it("scores a group match with correct result but no side exact (2 pts)", () => {
+    expect(
+      computePointsForPrediction(
+        { round: "GROUP_1", homeScore: 3, awayScore: 1, wentToEt: null, wentToPens: null },
+        { homeScore: 2, awayScore: 0, predictsEt: null, predictsPens: null }
+      )
+    ).toBe(2);
   });
 
   it("returns 0 for a wrong group result", () => {

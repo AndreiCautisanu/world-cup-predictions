@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 import { getLeaderboard, type LeaderboardRow } from "@/lib/leaderboard";
 
 export const dynamic = "force-dynamic";
@@ -39,8 +40,7 @@ function categoryShare(row: LeaderboardRow, key: (typeof CATEGORIES)[number]["ke
 }
 
 export default async function ClasamentPage() {
-  const session = await auth();
-  const meId = session?.user?.id;
+  const meId = getSessionUser(await auth())?.id;
   const rows = await getLeaderboard(prisma);
 
   const totalPlayers = rows.length;

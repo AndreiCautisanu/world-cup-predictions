@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CountdownLock } from "./CountdownLock";
 import { isKnockoutRound } from "@/lib/predictions";
 import {
@@ -54,9 +54,28 @@ type Props = {
 };
 
 export const DIRTY_EVENT = "pronosticuri:dirty";
-export const SAVE_ALL_EVENT = "pronosticuri:save-all";
+export const BATCH_SAVED_EVENT = "pronosticuri:batch-saved";
 
-export type DirtyEventDetail = { matchId: number; isDirty: boolean };
+export type DirtyPayload = {
+  homeScore: number;
+  awayScore: number;
+  predictsEt: boolean;
+  predictsPens: boolean;
+};
+
+export type DirtyEventDetail = {
+  matchId: number;
+  isDirty: boolean;
+  round: string;
+  // Snapshot of the unsaved state when isDirty=true; null when clean. The
+  // MatchdaySaveAll toolbar keeps the latest snapshot per matchId so a single
+  // batch POST can be assembled when the user clicks "Salvează tot".
+  payload: DirtyPayload | null;
+};
+
+export type BatchSavedEventDetail = {
+  saved: Array<{ matchId: number; snapshot: DirtyPayload }>;
+};
 
 const KICKOFF_FORMATTER = new Intl.DateTimeFormat("ro-RO", {
   weekday: "short",
@@ -105,16 +124,56 @@ export function MatchCard(props: Props) {
     return predictsEt !== lastSaved.et || predictsPens !== lastSaved.pens;
   }, [home, away, predictsEt, predictsPens, lastSaved, touched, isKnockout]);
 
-  // Dispatch dirty state for the parent toolbar to count
+  // Dispatch dirty state + the latest unsaved payload so the parent toolbar
+  // can batch-submit them with a single POST when the user clicks "Salvează
+  // tot". Effect re-runs on every state change while dirty so the snapshot
+  // in the toolbar stays current.
   useEffect(() => {
     if (props.isLocked || isPlaceholder) return;
+    const payload: DirtyPayload | null = isDirty
+      ? {
+          homeScore: home,
+          awayScore: away,
+          predictsEt: isKnockout ? predictsEt : false,
+          predictsPens: isKnockout ? predictsPens : false,
+        }
+      : null;
     const ev = new CustomEvent<DirtyEventDetail>(DIRTY_EVENT, {
-      detail: { matchId: props.matchId, isDirty },
+      detail: { matchId: props.matchId, isDirty, round: props.round, payload },
     });
     window.dispatchEvent(ev);
-  }, [isDirty, props.matchId, props.isLocked, isPlaceholder]);
+  }, [
+    isDirty,
+    props.matchId,
+    props.isLocked,
+    props.round,
+    isPlaceholder,
+    home,
+    away,
+    predictsEt,
+    predictsPens,
+    isKnockout,
+  ]);
 
-  const saveRef = useRef<() => Promise<void>>(async () => {});
+  // Apply a batch-save acknowledgement from the toolbar.
+  useEffect(() => {
+    if (props.isLocked || isPlaceholder) return;
+    function handler(e: Event) {
+      const detail = (e as CustomEvent<BatchSavedEventDetail>).detail;
+      const match = detail?.saved.find((s) => s.matchId === props.matchId);
+      if (!match) return;
+      setLastSaved({
+        home: match.snapshot.homeScore,
+        away: match.snapshot.awayScore,
+        et: match.snapshot.predictsEt,
+        pens: match.snapshot.predictsPens,
+      });
+      setTouched(false);
+      setStatus("saved");
+    }
+    window.addEventListener(BATCH_SAVED_EVENT, handler);
+    return () => window.removeEventListener(BATCH_SAVED_EVENT, handler);
+  }, [props.matchId, props.isLocked, isPlaceholder]);
 
   const save = useCallback(async () => {
     if (saving) return;
@@ -150,24 +209,11 @@ export function MatchCard(props: Props) {
     }
   }, [saving, isDirty, props.matchId, home, away, predictsEt, predictsPens, isKnockout]);
 
-  // Keep a stable ref so the event listener always calls the latest save()
-  saveRef.current = save;
-
-  // Listen for "save all" broadcast
-  useEffect(() => {
-    if (props.isLocked || isPlaceholder) return;
-    const handler = () => {
-      if (saveRef.current) void saveRef.current();
-    };
-    window.addEventListener(SAVE_ALL_EVENT, handler);
-    return () => window.removeEventListener(SAVE_ALL_EVENT, handler);
-  }, [props.isLocked, isPlaceholder]);
-
   // Scored predictions override locked/saved chrome with a tier-based palette
   // (rose miss → amber partial → sky close → emerald exact → gold perfect).
   // When pointsAwarded is null the card uses its standard saved/locked look.
   const hasPoints = props.pointsAwarded !== null && props.pointsAwarded !== undefined;
-  const tier: MatchTier = hasPoints ? matchPredictionTier(props.pointsAwarded) : "none";
+  const tier: MatchTier = hasPoints ? matchPredictionTier(props.pointsAwarded, props.round) : "none";
   const scoredTier = tier !== "none" ? (tier as Exclude<MatchTier, "none">) : null;
 
   const chrome = (() => {

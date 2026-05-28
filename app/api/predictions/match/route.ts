@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 import { isMatchLocked } from "@/lib/locking";
 import { buildMatchPredictionUpsertData } from "@/lib/predictions";
 
@@ -14,8 +15,7 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await auth();
-  const userId = (session?.user as { id?: number } | undefined)?.id;
+  const userId = getSessionUser(await auth())?.id;
   if (!userId) {
     return NextResponse.json({ error: "Neautentificat" }, { status: 401 });
   }
@@ -31,10 +31,26 @@ export async function POST(req: Request) {
 
   const match = await prisma.match.findUnique({
     where: { id: parsed.data.matchId },
-    select: { id: true, kickoffTime: true, round: true },
+    select: {
+      id: true,
+      kickoffTime: true,
+      round: true,
+      homeTeamId: true,
+      awayTeamId: true,
+    },
   });
   if (!match) {
     return NextResponse.json({ error: "Meci inexistent" }, { status: 404 });
+  }
+
+  // Knockout slots are seeded with null team IDs until the bracket resolves.
+  // Reject predictions for unresolved slots so the UI's placeholder rendering
+  // is also enforced server-side.
+  if (match.homeTeamId === null || match.awayTeamId === null) {
+    return NextResponse.json(
+      { error: "Echipele acestui meci nu sunt încă cunoscute" },
+      { status: 409 }
+    );
   }
 
   if (isMatchLocked(match.kickoffTime)) {

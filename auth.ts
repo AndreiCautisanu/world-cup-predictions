@@ -4,9 +4,14 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "./auth.config";
 
+// 7 days instead of 30. Admin password resets cannot invalidate active JWTs
+// (that would require DB sessions), so a shorter expiry caps the window where
+// a leaked or compromised session is still usable.
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
-  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
   providers: [
     Credentials({
       credentials: {
@@ -32,20 +37,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = Number(user.id);
-        token.isAdmin = (user as any).isAdmin ?? false;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token) {
-        (session.user as any).id = token.id;
-        (session.user as any).isAdmin = token.isAdmin;
-      }
-      return session;
-    },
-  },
 });

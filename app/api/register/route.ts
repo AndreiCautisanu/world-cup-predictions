@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const nameField = z
   .string()
@@ -22,7 +23,20 @@ const schema = z.object({
   password: z.string().min(8, "Minim 8 caractere"),
 });
 
+// 5 attempts per IP per 10 minutes — invite-only flow doesn't need higher.
+const REGISTER_LIMIT = 5;
+const REGISTER_WINDOW_MS = 10 * 60 * 1000;
+
 export async function POST(req: Request) {
+  const ip = clientIp(req);
+  const limit = rateLimit(`register:${ip}`, REGISTER_LIMIT, REGISTER_WINDOW_MS);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Prea multe încercări. Revino mai târziu." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {

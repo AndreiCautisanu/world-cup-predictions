@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("toggle") }),
@@ -17,8 +18,8 @@ const schema = z.discriminatedUnion("action", [
 ]);
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.isAdmin) {
+  const user = getSessionUser(await auth());
+  if (!user?.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

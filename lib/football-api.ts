@@ -48,6 +48,10 @@ export type FdMatch = {
   };
 };
 
+// Bound how long the cron will wait on football-data. Without this the route
+// can hang for the whole platform request timeout if the upstream stalls.
+const FETCH_TIMEOUT_MS = 10_000;
+
 export async function fetchWorldCupMatches(): Promise<FdMatch[]> {
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) throw new Error("FOOTBALL_DATA_API_KEY not set");
@@ -55,6 +59,7 @@ export async function fetchWorldCupMatches(): Promise<FdMatch[]> {
   const res = await fetch(`${BASE}/competitions/WC/matches`, {
     headers: { "X-Auth-Token": apiKey },
     cache: "no-store",
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const text = await res.text();

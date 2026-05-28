@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Round } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 import { isTournamentLocked, tournamentLockTime } from "@/lib/locking";
 import { buildDisplayName, summarizeLeaderboardRows } from "@/lib/leaderboard";
 import { matchPredictionTier, MATCH_TIER_LABEL, type MatchTier } from "@/lib/match-tier";
@@ -67,8 +68,7 @@ export default async function JucatorPage({
   const { username: rawUsername } = await params;
   const username = decodeURIComponent(rawUsername);
 
-  const session = await auth();
-  const meId = session?.user?.id;
+  const meId = getSessionUser(await auth())?.id;
 
   const user = await prisma.user.findUnique({
     where: { username },
@@ -354,7 +354,7 @@ function MatchPredictionRow({
   const m = prediction.match;
   const finished = m.status === "FINISHED" && m.homeScore !== null && m.awayScore !== null;
   const meta = m.group?.name ? `Grupa ${m.group.name}` : ROUND_LABELS[m.round];
-  const tier = matchPredictionTier(prediction.pointsAwarded);
+  const tier = matchPredictionTier(prediction.pointsAwarded, m.round);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/40">

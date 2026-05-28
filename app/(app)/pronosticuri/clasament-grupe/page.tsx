@@ -2,12 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/session";
 import { isTournamentLocked, tournamentLockTime } from "@/lib/locking";
 import { GroupStandingsForm } from "@/components/GroupStandingsForm";
 
 export default async function ClasamentGrupePage() {
-  const session = await auth();
-  const userId = (session?.user as { id?: number } | undefined)?.id;
+  const userId = getSessionUser(await auth())?.id;
   if (!userId) redirect("/login");
 
   const [groups, predictions, lockAt] = await Promise.all([

@@ -7,13 +7,39 @@ type Props = {
   kickoff: Date;
 };
 
+// One-minute resolution while the lock is far off, then a precise timeout that
+// fires exactly when the lock flips so the UI never sits in a wrong state.
+const FAR_TICK_MS = 60_000;
+const CLOSE_THRESHOLD_MS = 90 * 60 * 1000;
+
 export function CountdownLock({ kickoff }: Props) {
   const [now, setNow] = useState<Date>(() => new Date());
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(interval);
-  }, []);
+    let timer: ReturnType<typeof setTimeout>;
+    function schedule() {
+      const lockAt = lockTimeFor(kickoff).getTime();
+      const remaining = lockAt - Date.now();
+      let delay: number;
+      if (remaining <= 0) {
+        // Already locked — stop scheduling.
+        return;
+      }
+      if (remaining < CLOSE_THRESHOLD_MS) {
+        // Schedule the next tick to land exactly at the lock transition (cap
+        // to a 1-second floor to avoid a runaway loop on clock skew).
+        delay = Math.max(1_000, remaining);
+      } else {
+        delay = FAR_TICK_MS;
+      }
+      timer = setTimeout(() => {
+        setNow(new Date());
+        schedule();
+      }, delay);
+    }
+    schedule();
+    return () => clearTimeout(timer);
+  }, [kickoff]);
 
   if (isMatchLocked(kickoff, now)) {
     return (
