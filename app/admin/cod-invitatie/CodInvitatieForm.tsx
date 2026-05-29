@@ -80,7 +80,7 @@ export function CodInvitatieForm({ active }: { active: boolean }) {
             type="text"
             value={newCode}
             onChange={(e) => setNewCode(e.target.value)}
-            placeholder="Ex. cupa2026-final"
+            placeholder="cod-nou"
             autoComplete="off"
             className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-1.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-rose-400/60 focus:outline-none"
           />

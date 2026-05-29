@@ -23,11 +23,11 @@ export default function RegisterPage() {
         </h2>
       </div>
 
-      <Field label="Cod de invitație">
+      <Field label="Cod de invitație" hint="Codul primit de la organizator.">
         <input
           name="inviteCode"
-          placeholder="inring26"
           required
+          autoComplete="off"
           defaultValue={state.values?.inviteCode ?? ""}
           className={inputClass}
         />
