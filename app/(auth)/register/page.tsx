@@ -1,57 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { useActionState } from "react";
+import { registerAction, type RegisterFormState } from "./actions";
+
+const initial: RegisterFormState = {};
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    const fd = new FormData(e.currentTarget);
-    const payload = {
-      inviteCode: fd.get("inviteCode"),
-      firstName: fd.get("firstName"),
-      lastName: fd.get("lastName"),
-      username: fd.get("username"),
-      password: fd.get("password"),
-    };
-
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Eroare necunoscută");
-      setLoading(false);
-      return;
-    }
-
-    const result = await signIn("credentials", {
-      username: payload.username,
-      password: payload.password,
-      redirect: false,
-    });
-    setLoading(false);
-    if (result?.error) {
-      setError("Cont creat, dar autentificarea a eșuat. Încearcă să te loghezi manual.");
-      return;
-    }
-    router.push("/clasament");
-  }
+  const [state, formAction, pending] = useActionState(registerAction, initial);
 
   return (
     <form
-      onSubmit={onSubmit}
+      action={formAction}
       className="space-y-5 rounded-2xl border border-slate-800 bg-slate-950/70 p-6 ring-1 ring-slate-800/60 backdrop-blur"
     >
       <div className="space-y-1">
@@ -66,8 +26,9 @@ export default function RegisterPage() {
       <Field label="Cod de invitație">
         <input
           name="inviteCode"
-          placeholder="cupa2026"
+          placeholder="inring26"
           required
+          defaultValue={state.values?.inviteCode ?? ""}
           className={inputClass}
         />
       </Field>
@@ -80,6 +41,7 @@ export default function RegisterPage() {
             required
             maxLength={50}
             autoComplete="given-name"
+            defaultValue={state.values?.firstName ?? ""}
             className={inputClass}
           />
         </Field>
@@ -90,6 +52,7 @@ export default function RegisterPage() {
             required
             maxLength={50}
             autoComplete="family-name"
+            defaultValue={state.values?.lastName ?? ""}
             className={inputClass}
           />
         </Field>
@@ -101,6 +64,7 @@ export default function RegisterPage() {
           placeholder="andrei_p"
           required
           autoComplete="username"
+          defaultValue={state.values?.username ?? ""}
           className={inputClass}
         />
       </Field>
@@ -117,18 +81,18 @@ export default function RegisterPage() {
         />
       </Field>
 
-      {error && (
+      {state.error && (
         <p className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
-          {error}
+          {state.error}
         </p>
       )}
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={pending}
         className="w-full rounded-lg bg-emerald-500 px-4 py-2.5 font-display text-sm font-bold uppercase tracking-[0.18em] text-emerald-950 transition hover:bg-emerald-400 disabled:opacity-50"
       >
-        {loading ? "Se creează…" : "Creează cont"}
+        {pending ? "Se creează…" : "Creează cont"}
       </button>
 
       <p className="text-center text-sm text-slate-400">
