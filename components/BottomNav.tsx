@@ -7,6 +7,7 @@ const TABS = [
   { href: "/clasament", label: "Clasament", icon: TrophyIcon },
   { href: "/pronosticuri", label: "Pronosticuri", icon: BallIcon },
   { href: "/meciuri", label: "Meciuri", icon: CalendarIcon },
+  { href: "/reguli", label: "Reguli", icon: BookIcon },
   { href: "/profil", label: "Profil", icon: UserIcon },
 ];
 
@@ -34,7 +35,7 @@ export function BottomNav() {
                   }`}
                 />
                 <Icon active={active} />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em]">
+                <span className="max-w-full truncate px-1 text-[9px] font-semibold uppercase tracking-[0.14em]">
                   {tab.label}
                 </span>
               </Link>
@@ -76,6 +77,14 @@ function UserIcon({ active }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
       <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.69-8 6v2h16v-2c0-3.31-3.58-6-8-6Z" opacity={active ? 1 : 0.85} />
+    </svg>
+  );
+}
+
+function BookIcon({ active }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 fill-current">
+      <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H6Zm0 2h12v14H6.5a.5.5 0 0 0 0 1H18v1H6V4Zm2 3h8v2H8V7Zm0 4h6v2H8v-2Z" opacity={active ? 1 : 0.85} />
     </svg>
   );
 }
