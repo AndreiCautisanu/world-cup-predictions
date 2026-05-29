@@ -136,8 +136,8 @@ function PodiumHero({ row, highlighted }: { row: LeaderboardRow; highlighted: bo
 
       <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1">
-          <p className="flex items-baseline gap-2">
-            <NameLink username={row.username} className="font-display truncate text-3xl font-extrabold uppercase tracking-tight text-slate-50 transition hover:text-amber-100 sm:text-4xl">
+          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <NameLink username={row.username} className="font-display break-words text-3xl font-extrabold uppercase leading-[1.05] tracking-tight text-slate-50 transition hover:text-amber-100 sm:text-4xl">
               {row.displayName}
             </NameLink>
             {highlighted && <YouPill />}
@@ -199,8 +199,8 @@ function PodiumSide({
       </div>
 
       <div className="space-y-1">
-        <p className="flex items-baseline gap-2 truncate">
-          <NameLink username={row.username} className="font-display truncate text-xl font-extrabold uppercase tracking-tight text-slate-50 transition hover:text-slate-200">
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <NameLink username={row.username} className="font-display break-words text-xl font-extrabold uppercase leading-[1.05] tracking-tight text-slate-50 transition hover:text-slate-200">
             {row.displayName}
           </NameLink>
           {highlighted && <YouPill />}
@@ -244,10 +244,10 @@ function LeaderboardRowItem({
             {place}
           </span>
           <div className="min-w-0 flex-1 space-y-1.5">
-            <p className="flex items-baseline gap-2 truncate">
-              <span className="truncate text-sm font-semibold text-slate-100">{row.displayName}</span>
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="break-words text-sm font-semibold leading-tight text-slate-100">{row.displayName}</span>
               {(row.firstName || row.lastName) && (
-                <span className="hidden truncate text-[11px] text-slate-500 sm:inline">@{row.username}</span>
+                <span className="hidden text-[11px] text-slate-500 sm:inline">@{row.username}</span>
               )}
               {highlighted && <YouPill />}
             </p>

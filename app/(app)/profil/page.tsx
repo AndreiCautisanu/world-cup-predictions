@@ -62,7 +62,7 @@ export default async function Profil() {
         </p>
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="min-w-0 flex-1">
-            <h1 className="font-display truncate text-4xl font-extrabold uppercase tracking-tight text-slate-50 sm:text-5xl">
+            <h1 className="font-display break-words text-4xl font-extrabold uppercase leading-[1.05] tracking-tight text-slate-50 sm:text-5xl">
               {displayName}
             </h1>
             <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500">

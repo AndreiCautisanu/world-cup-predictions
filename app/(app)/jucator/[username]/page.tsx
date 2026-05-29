@@ -185,7 +185,7 @@ export default async function JucatorPage({
             <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-emerald-300/70">
               Jucător
             </p>
-            <h1 className="font-display truncate text-4xl font-extrabold uppercase tracking-tight text-slate-50 sm:text-5xl">
+            <h1 className="font-display break-words text-4xl font-extrabold uppercase leading-[1.05] tracking-tight text-slate-50 sm:text-5xl">
               {displayName}
             </h1>
             <p className="mt-1 flex items-center gap-2 text-xs font-medium text-slate-500">
