@@ -66,9 +66,13 @@ export function GroupStandingsForm({
   const hasSavedEver = status === "saved" || !ordersEqual(lastSaved, initialOrder);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    // distance: 2 — start dragging on a 2px move (was 4). Below ~2 you get
+    // accidental drags on click; above feels laggy.
+    useSensor(PointerSensor, { activationConstraint: { distance: 2 } }),
+    // delay: 120 — shorter hold before mobile drag engages (was 180); still
+    // long enough to not steal vertical scroll gestures.
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 180, tolerance: 6 },
+      activationConstraint: { delay: 120, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -260,7 +264,11 @@ function SortableRow({
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    // While actively dragging, kill the transition so the row sits exactly
+    // under the cursor instead of easing toward it. dnd-kit's `transition`
+    // is only useful for the reorder animation of *other* items, not the
+    // one being dragged.
+    transition: isDragging ? "none" : transition,
   };
 
   const meta = POSITION_META[position];
@@ -269,7 +277,10 @@ function SortableRow({
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 bg-slate-950/0 px-4 py-3 transition ${
+      // Tailwind's bare `transition` animates `transform` too, which fights
+      // the live drag — scope to background/shadow/ring only so the dropped
+      // chrome still fades in/out smoothly.
+      className={`flex items-center gap-3 bg-slate-950/0 px-4 py-3 transition-[background-color,box-shadow,outline-color] duration-150 ${
         isDragging
           ? "z-10 rounded-lg bg-slate-900/90 shadow-2xl shadow-black/60 ring-1 ring-emerald-400/40"
           : ""
