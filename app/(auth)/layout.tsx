@@ -4,6 +4,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <BackgroundGlow />
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
         <header className="mb-8 space-y-2 text-center">
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.32em] text-emerald-200">
+            <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            InRing
+          </p>
           <h1 className="font-display text-4xl font-extrabold uppercase tracking-[0.04em] text-slate-50 sm:text-5xl">
             Cupa<span className="text-emerald-400">Mondiala</span>
             <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-[0.32em] text-slate-500">
@@ -11,7 +15,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </span>
           </h1>
           <p className="mx-auto max-w-xs text-sm text-slate-400">
-            Turneul intern de pronosticuri Cupa Mondială
+            Turneul InRing de pronosticuri Cupa Mondială
           </p>
         </header>
 

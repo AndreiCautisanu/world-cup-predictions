@@ -17,8 +17,8 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Cupa Mondiala 2026",
-  description: "Pronosticuri Cupa Mondiala 2026",
+  title: "InRing · Cupa Mondiala 2026",
+  description: "Turneul InRing de pronosticuri Cupa Mondială 2026",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

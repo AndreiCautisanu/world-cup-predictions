@@ -11,6 +11,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-slate-950/80 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-slate-950/60">
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <Link href="/clasament" className="group inline-flex items-baseline gap-2">
+            <span className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.32em] text-emerald-200 transition group-hover:border-emerald-400/60">
+              InRing
+            </span>
             <span className="font-display text-xl font-extrabold uppercase tracking-[0.04em] text-slate-50">
               Cupa<span className="text-emerald-400">Mondiala</span>
             </span>

@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Admin
             </span>
             <span className="font-display text-xl font-extrabold uppercase tracking-[0.04em] text-slate-50">
-              Cupa<span className="text-rose-400">Mondiala</span>
+              <span className="text-rose-400/80">InRing</span> · Cupa<span className="text-rose-400">Mondiala</span>
             </span>
           </div>
           <Link
