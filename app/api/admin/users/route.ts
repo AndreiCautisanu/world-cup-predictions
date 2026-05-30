@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { logAdminAction } from "@/lib/audit";
 
 const schema = z
   .object({
@@ -55,5 +56,12 @@ export async function POST(req: Request) {
   }
 
   await prisma.user.update({ where: { id: target.id }, data });
+  // Redact the new password — only log that a reset happened, not the value.
+  await logAdminAction(prisma, user.name ?? "<unknown>", "user.update", {
+    targetUserId: target.id,
+    targetUsername: target.username,
+    setIsAdmin: parsed.data.isAdmin,
+    passwordReset: parsed.data.resetPassword !== undefined,
+  });
   return NextResponse.json({ ok: true });
 }

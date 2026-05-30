@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { logAdminAction } from "@/lib/audit";
 import { calculateAndStorePoints, clearMatchResult } from "@/lib/recalc";
 
 const schema = z.discriminatedUnion("action", [
@@ -46,6 +47,14 @@ export async function POST(req: Request) {
 
   if (action === "clear") {
     await clearMatchResult(prisma, matchId);
+    await logAdminAction(prisma, user.name ?? "<unknown>", "result.clear", {
+      matchId,
+      previous: {
+        homeScore: existing.homeScore,
+        awayScore: existing.awayScore,
+        status: existing.status,
+      },
+    });
     return NextResponse.json({ ok: true, cleared: true });
   }
 
@@ -99,6 +108,15 @@ export async function POST(req: Request) {
   });
 
   await calculateAndStorePoints(prisma, matchId);
+  await logAdminAction(prisma, user.name ?? "<unknown>", "result.save", {
+    matchId,
+    homeScore,
+    awayScore,
+    wentToEt: isKnockout ? wentToEt ?? false : false,
+    wentToPens: isKnockout ? wentToPens ?? false : false,
+    ...(homeTeamId ? { homeTeamId } : {}),
+    ...(awayTeamId ? { awayTeamId } : {}),
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { logAdminAction } from "@/lib/audit";
 
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("toggle") }),
@@ -41,6 +42,10 @@ export async function POST(req: Request) {
       where: { id: current.id },
       data: { isActive: !current.isActive },
     });
+    await logAdminAction(prisma, user.name ?? "<unknown>", "invite.toggle", {
+      code: current.code,
+      activeAfter: !current.isActive,
+    });
     return NextResponse.json({ ok: true, active: !current.isActive });
   }
 
@@ -58,6 +63,9 @@ export async function POST(req: Request) {
     }
     throw err;
   }
+  await logAdminAction(prisma, user.name ?? "<unknown>", "invite.rotate", {
+    newCode: parsed.data.newCode,
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -27,6 +27,19 @@ model InviteCode {
   createdAt DateTime @default(now())
 }
 
+/// Append-only log of admin actions. Independent of the User table — actor
+/// is denormalized so the record survives even if the admin account is
+/// later deleted.
+model AdminAuditLog {
+  id            Int      @id @default(autoincrement())
+  actorUsername String
+  action        String
+  payload       Json
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model Group {
   id   Int    @id @default(autoincrement())
   name String @unique

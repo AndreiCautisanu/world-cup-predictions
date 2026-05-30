@@ -7,6 +7,8 @@ const TABS = [
   { href: "/admin/rezultate", label: "Rezultate" },
   { href: "/admin/utilizatori", label: "Utilizatori" },
   { href: "/admin/cod-invitatie", label: "Cod invitație" },
+  { href: "/admin/audit", label: "Audit" },
+  { href: "/admin/backup", label: "Backup" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

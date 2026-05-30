@@ -16,8 +16,13 @@ export default auth((req) => {
     nextUrl.pathname.startsWith("/api/auth") ||
     nextUrl.pathname.startsWith("/api/register");
 
-  // Cron endpoint authenticates via CRON_SECRET — bypass session check
+  // Cron endpoints authenticate via CRON_SECRET (POST) — bypass session
+  // check. GET on snapshot still falls through to the admin-session gate
+  // below since /api/admin/snapshot starts with /api/admin.
   if (nextUrl.pathname === "/api/admin/sync-results") {
+    return NextResponse.next();
+  }
+  if (nextUrl.pathname === "/api/admin/snapshot" && req.method === "POST") {
     return NextResponse.next();
   }
 
@@ -31,10 +36,14 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/clasament", nextUrl));
   }
 
-  // Admin gate
+  // Admin gate. Skip the cron-secret-protected endpoints (already returned
+  // above for the methods that use bearer auth).
+  const isCronSecretEndpoint =
+    nextUrl.pathname === "/api/admin/sync-results" ||
+    (nextUrl.pathname === "/api/admin/snapshot" && req.method === "POST");
   if (
     (nextUrl.pathname.startsWith("/admin") || nextUrl.pathname.startsWith("/api/admin")) &&
-    nextUrl.pathname !== "/api/admin/sync-results"
+    !isCronSecretEndpoint
   ) {
     if (!session?.user?.isAdmin) {
       return NextResponse.redirect(new URL("/clasament", nextUrl));
