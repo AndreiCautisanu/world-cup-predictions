@@ -1,13 +1,12 @@
 "use server";
 
-import { headers } from "next/headers";
 import { signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { rateLimit } from "@/lib/rate-limit";
 import { registerSchema, registerUser } from "@/lib/registration";
 
-const REGISTER_LIMIT = 5;
-const REGISTER_WINDOW_MS = 10 * 60 * 1000;
+// No rate limit on registration: this is a private, invite-only friend
+// group, and IP-based throttling locked out friends sharing a network
+// (home WiFi / carrier NAT). The invite code is the gate that matters.
 
 export type RegisterFormState = {
   error?: string;
@@ -19,12 +18,6 @@ export type RegisterFormState = {
     username?: string;
   };
 };
-
-function ipFromHeaders(h: Headers): string {
-  const xff = h.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  return h.get("x-real-ip") ?? "unknown";
-}
 
 // NextAuth v5 throws a redirect via Next's internals (`digest` starts with
 // `NEXT_REDIRECT`). Must be re-thrown so the framework can act on it; any
@@ -49,13 +42,6 @@ export async function registerAction(
     lastName: String(formData.get("lastName") ?? ""),
     username: String(formData.get("username") ?? ""),
   };
-
-  const h = await headers();
-  const ip = ipFromHeaders(h);
-  const limit = rateLimit(`register:${ip}`, REGISTER_LIMIT, REGISTER_WINDOW_MS);
-  if (!limit.ok) {
-    return { error: "Prea multe încercări. Revino mai târziu.", values };
-  }
 
   const parsed = registerSchema.safeParse({
     ...values,
