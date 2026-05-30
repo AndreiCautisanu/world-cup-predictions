@@ -6,6 +6,7 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import type { PrismaClient } from "@prisma/client";
+import { PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS } from "./password-requirements";
 
 const nameField = z
   .string()
@@ -23,7 +24,11 @@ export const registerSchema = z.object({
     .min(3, "Minim 3 caractere")
     .max(30)
     .regex(/^[a-zA-Z0-9_-]+$/, "Doar litere, cifre, _ și -"),
-  password: z.string().min(8, "Minim 8 caractere"),
+  password: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS)
+    .regex(/[a-zA-Z]/, PASSWORD_REQUIREMENTS)
+    .regex(/[0-9]/, PASSWORD_REQUIREMENTS),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

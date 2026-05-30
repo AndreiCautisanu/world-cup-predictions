@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { registerAction, type RegisterFormState } from "./actions";
+import { PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS } from "@/lib/password-requirements";
 
 const initial: RegisterFormState = {};
 
@@ -69,13 +70,13 @@ export default function RegisterPage() {
         />
       </Field>
 
-      <Field label="Parolă" hint="Minim 8 caractere.">
+      <Field label="Parolă" hint={PASSWORD_REQUIREMENTS}>
         <input
           name="password"
           type="password"
           placeholder="••••••••"
           required
-          minLength={8}
+          minLength={PASSWORD_MIN_LENGTH}
           autoComplete="new-password"
           className={inputClass}
         />
