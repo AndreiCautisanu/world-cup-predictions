@@ -23,11 +23,9 @@ export const registerSchema = z.object({
     .min(3, "Minim 3 caractere")
     .max(30)
     .regex(/^[a-zA-Z0-9_-]+$/, "Doar litere, cifre, _ și -"),
-  password: z
-    .string()
-    .min(PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS)
-    .regex(/[a-zA-Z]/, PASSWORD_REQUIREMENTS)
-    .regex(/[0-9]/, PASSWORD_REQUIREMENTS),
+  // Just a length floor — no character-class rules. Keeps friends from
+  // getting bounced for not having a digit/letter mix.
+  password: z.string().min(PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

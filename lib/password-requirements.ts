@@ -3,5 +3,4 @@
 // bcrypt/Prisma from lib/registration.ts.
 export const PASSWORD_MIN_LENGTH = 6;
 
-export const PASSWORD_REQUIREMENTS =
-  "Minim 6 caractere, cu cel puțin o literă și o cifră.";
+export const PASSWORD_REQUIREMENTS = "Minim 6 caractere.";
