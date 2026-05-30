@@ -4,15 +4,15 @@ import { signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { registerSchema, registerUser } from "@/lib/registration";
 
-// No rate limit on registration: this is a private, invite-only friend
-// group, and IP-based throttling locked out friends sharing a network
-// (home WiFi / carrier NAT). The invite code is the gate that matters.
+// Open registration: no invite code, no rate limit. This is a private friend
+// group; the owner manually prunes any unrecognized accounts. IP-based
+// throttling previously locked out friends sharing a network (home WiFi /
+// carrier NAT), so it was removed too.
 
 export type RegisterFormState = {
   error?: string;
   // Echo back the values so the form doesn't blank on error.
   values?: {
-    inviteCode?: string;
     firstName?: string;
     lastName?: string;
     username?: string;
@@ -37,7 +37,6 @@ export async function registerAction(
   formData: FormData
 ): Promise<RegisterFormState> {
   const values = {
-    inviteCode: String(formData.get("inviteCode") ?? ""),
     firstName: String(formData.get("firstName") ?? ""),
     lastName: String(formData.get("lastName") ?? ""),
     username: String(formData.get("username") ?? ""),

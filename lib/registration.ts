@@ -15,7 +15,6 @@ const nameField = z
   .max(50, "Maxim 50 de caractere");
 
 export const registerSchema = z.object({
-  inviteCode: z.string().min(1, "Cod de invitație necesar"),
   firstName: nameField,
   lastName: nameField,
   username: z
@@ -41,13 +40,8 @@ export async function registerUser(
   prisma: PrismaClient,
   input: RegisterInput
 ): Promise<RegisterResult> {
-  const code = await prisma.inviteCode.findUnique({
-    where: { code: input.inviteCode },
-  });
-  if (!code || !code.isActive) {
-    return { ok: false, error: "Cod de invitație invalid", status: 403 };
-  }
-
+  // Open registration: no invite code. This is a private friend group and
+  // the owner manually prunes any unrecognized accounts.
   const existing = await prisma.user.findUnique({
     where: { username: input.username },
   });
