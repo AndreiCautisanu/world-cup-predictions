@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type User = {
   id: number;
@@ -9,6 +10,8 @@ type User = {
   isAdmin: boolean;
   createdAt: string;
   predictionCount: number;
+  firstName: string | null;
+  lastName: string | null;
 };
 
 const JOINED_FORMATTER = new Intl.DateTimeFormat("ro-RO", {
@@ -26,8 +29,29 @@ export function AdminUserRow({ user }: { user: User }) {
   const [pwStatus, setPwStatus] = useState<Status>("idle");
   const [adminStatus, setAdminStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState(user.firstName ?? "");
+  const [lastName, setLastName] = useState(user.lastName ?? "");
+  const [nameStatus, setNameStatus] = useState<Status>("idle");
 
-  async function call(payload: { isAdmin?: boolean; resetPassword?: string }) {
+  async function saveName() {
+    setNameStatus("saving");
+    setError(null);
+    try {
+      await call({ firstName: firstName.trim(), lastName: lastName.trim() });
+      setNameStatus("saved");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Eroare");
+      setNameStatus("error");
+    }
+  }
+
+  async function call(payload: {
+    isAdmin?: boolean;
+    resetPassword?: string;
+    firstName?: string;
+    lastName?: string;
+  }) {
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -83,9 +107,17 @@ export function AdminUserRow({ user }: { user: User }) {
             </span>
           )}
         </div>
-        <span className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-          {JOINED_FORMATTER.format(new Date(user.createdAt))} · {user.predictionCount} pronosticuri
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+            {JOINED_FORMATTER.format(new Date(user.createdAt))} · {user.predictionCount} pronosticuri
+          </span>
+          <Link
+            href={`/admin/utilizatori/${user.id}`}
+            className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300 transition hover:border-rose-500/40 hover:text-rose-100"
+          >
+            Vezi pronosticuri
+          </Link>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -122,6 +154,33 @@ export function AdminUserRow({ user }: { user: User }) {
                 : "Resetează"}
           </button>
         </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          placeholder="Prenume"
+          value={firstName}
+          maxLength={50}
+          onChange={(e) => setFirstName(e.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-rose-400/60 focus:outline-none"
+        />
+        <input
+          type="text"
+          placeholder="Nume"
+          value={lastName}
+          maxLength={50}
+          onChange={(e) => setLastName(e.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-rose-400/60 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={saveName}
+          disabled={nameStatus === "saving"}
+          className="rounded-full bg-rose-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-rose-50 transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {nameStatus === "saving" ? "…" : nameStatus === "saved" ? "Salvat ✓" : "Salvează"}
+        </button>
       </div>
 
       {error && (
