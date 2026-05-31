@@ -9,6 +9,8 @@ export default async function AdminUtilizatori() {
       username: true,
       isAdmin: true,
       createdAt: true,
+      firstName: true,
+      lastName: true,
       _count: {
         select: {
           matchPredictions: true,
@@ -48,6 +50,8 @@ export default async function AdminUtilizatori() {
               isAdmin: u.isAdmin,
               createdAt: u.createdAt.toISOString(),
               predictionCount: u._count.matchPredictions,
+              firstName: u.firstName,
+              lastName: u.lastName,
             }}
           />
         ))}
