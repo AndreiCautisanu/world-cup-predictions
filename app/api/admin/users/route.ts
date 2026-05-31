@@ -6,15 +6,22 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { logAdminAction } from "@/lib/audit";
 
-const schema = z
+export const updateUserSchema = z
   .object({
     userId: z.number().int(),
     isAdmin: z.boolean().optional(),
     resetPassword: z.string().min(8).max(200).optional(),
+    firstName: z.string().trim().max(50, "Maxim 50 de caractere").optional(),
+    lastName: z.string().trim().max(50, "Maxim 50 de caractere").optional(),
   })
-  .refine((d) => d.isAdmin !== undefined || d.resetPassword !== undefined, {
-    message: "Nimic de modificat",
-  });
+  .refine(
+    (d) =>
+      d.isAdmin !== undefined ||
+      d.resetPassword !== undefined ||
+      d.firstName !== undefined ||
+      d.lastName !== undefined,
+    { message: "Nimic de modificat" }
+  );
 
 export async function POST(req: Request) {
   const user = getSessionUser(await auth());
@@ -23,7 +30,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => null);
-  const parsed = schema.safeParse(body);
+  const parsed = updateUserSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Date invalide" },
@@ -49,10 +56,21 @@ export async function POST(req: Request) {
     }
   }
 
-  const data: { isAdmin?: boolean; passwordHash?: string } = {};
+  const data: {
+    isAdmin?: boolean;
+    passwordHash?: string;
+    firstName?: string | null;
+    lastName?: string | null;
+  } = {};
   if (parsed.data.isAdmin !== undefined) data.isAdmin = parsed.data.isAdmin;
   if (parsed.data.resetPassword) {
     data.passwordHash = await bcrypt.hash(parsed.data.resetPassword, 10);
+  }
+  if (parsed.data.firstName !== undefined) {
+    data.firstName = parsed.data.firstName === "" ? null : parsed.data.firstName;
+  }
+  if (parsed.data.lastName !== undefined) {
+    data.lastName = parsed.data.lastName === "" ? null : parsed.data.lastName;
   }
 
   await prisma.user.update({ where: { id: target.id }, data });
@@ -62,6 +80,8 @@ export async function POST(req: Request) {
     targetUsername: target.username,
     setIsAdmin: parsed.data.isAdmin,
     passwordReset: parsed.data.resetPassword !== undefined,
+    setFirstName: parsed.data.firstName,
+    setLastName: parsed.data.lastName,
   });
   return NextResponse.json({ ok: true });
 }
