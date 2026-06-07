@@ -64,6 +64,7 @@ export function GroupStandingsForm({
 
   const isDirty = !ordersEqual(order, lastSaved);
   const hasSavedEver = status === "saved" || !ordersEqual(lastSaved, initialOrder);
+  const canSave = isDirty || !hasSavedEver;
 
   const sensors = useSensors(
     // distance: 2 — start dragging on a 2px move (was 4). Below ~2 you get
@@ -92,7 +93,7 @@ export function GroupStandingsForm({
   }, []);
 
   const save = useCallback(async () => {
-    if (saving || !isDirty) return;
+    if (saving || !canSave) return;
     setSaving(true);
     setError(null);
     setStatus("idle");
@@ -122,7 +123,7 @@ export function GroupStandingsForm({
     } finally {
       setSaving(false);
     }
-  }, [saving, isDirty, groupId, order]);
+  }, [saving, canSave, groupId, order]);
 
   const chrome = (() => {
     if (locked) return "border-slate-800/80 opacity-80";
@@ -218,7 +219,7 @@ export function GroupStandingsForm({
           <button
             type="button"
             onClick={() => void save()}
-            disabled={saving || !isDirty}
+            disabled={saving || !canSave}
             className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
               isDirty
                 ? "bg-amber-400 text-amber-950 shadow-[0_0_0_1px_rgba(251,191,36,0.5)] hover:bg-amber-300"
