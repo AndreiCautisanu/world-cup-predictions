@@ -124,6 +124,8 @@ export function MatchCard(props: Props) {
     return predictsEt !== lastSaved.et || predictsPens !== lastSaved.pens;
   }, [home, away, predictsEt, predictsPens, lastSaved, touched, isKnockout]);
 
+  const canSave = isDirty || !hasSavedEver;
+
   // Dispatch dirty state + the latest unsaved payload so the parent toolbar
   // can batch-submit them with a single POST when the user clicks "Salvează
   // tot". Effect re-runs on every state change while dirty so the snapshot
@@ -177,7 +179,7 @@ export function MatchCard(props: Props) {
 
   const save = useCallback(async () => {
     if (saving) return;
-    if (!isDirty) return; // nothing to do
+    if (!canSave) return; // nothing to do
     setSaving(true);
     setStatus("idle");
     const body: Record<string, unknown> = {
@@ -207,7 +209,7 @@ export function MatchCard(props: Props) {
     } finally {
       setSaving(false);
     }
-  }, [saving, isDirty, props.matchId, home, away, predictsEt, predictsPens, isKnockout]);
+  }, [saving, canSave, props.matchId, home, away, predictsEt, predictsPens, isKnockout]);
 
   // Scored predictions override locked/saved chrome with a tier-based palette
   // (rose miss → amber partial → sky close → emerald exact → gold perfect).
@@ -233,7 +235,7 @@ export function MatchCard(props: Props) {
     return "Salvează";
   })();
 
-  const buttonDisabled = saving || !isDirty;
+  const buttonDisabled = saving || !canSave;
 
   return (
     <article
