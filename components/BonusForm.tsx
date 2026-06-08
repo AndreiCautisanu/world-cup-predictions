@@ -519,9 +519,11 @@ function TeamPickerDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const filtered = query
-    ? teams.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()))
-    : teams;
+  const filtered = (
+    query
+      ? teams.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()))
+      : teams
+  ).slice().sort((a, b) => a.name.localeCompare(b.name, "ro"));
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
