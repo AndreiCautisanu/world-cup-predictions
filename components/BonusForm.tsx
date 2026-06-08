@@ -327,6 +327,7 @@ function TrophyCard({
   showPot?: boolean;
   pointsTooltip?: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
   const a = ACCENTS[accent];
   return (
     <article
@@ -368,8 +369,12 @@ function TrophyCard({
         )}
       </header>
 
-      <label
-        className={`relative block cursor-pointer px-4 py-5 transition ${
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        disabled={locked}
+        onClick={() => setOpen(true)}
+        className={`relative block w-full cursor-pointer px-4 py-5 text-left transition ${
           locked ? "cursor-not-allowed opacity-80" : "hover:bg-slate-900/40"
         }`}
       >
@@ -408,25 +413,16 @@ function TrophyCard({
             <ChevronDown />
           </div>
         )}
-
-        <select
-          aria-label={ariaLabel}
-          value={value ?? ""}
-          disabled={locked}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className={`absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent text-transparent opacity-0 outline-none ${a.focusRing} ${a.focusBorder}`}
-        >
-          <option value="" disabled>
-            Alege o echipă
-          </option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.flagEmoji} {t.name}
-              {showPot ? ` · urna ${t.pot}` : ""}
-            </option>
-          ))}
-        </select>
-      </label>
+      </button>
+      {open && (
+        <TeamPickerDialog
+          teams={teams}
+          onSelect={(id) => { onChange(id); setOpen(false); }}
+          onClose={() => setOpen(false)}
+          showPot={showPot}
+          ariaLabel={ariaLabel}
+        />
+      )}
 
       {warning && (
         <p className="border-t border-rose-500/30 bg-rose-500/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-300">
@@ -491,6 +487,102 @@ function ScorerCard({
         />
       </div>
     </article>
+  );
+}
+
+function TeamPickerDialog({
+  teams,
+  onSelect,
+  onClose,
+  showPot,
+  ariaLabel,
+}: {
+  teams: Team[];
+  onSelect: (id: number) => void;
+  onClose: () => void;
+  showPot?: boolean;
+  ariaLabel: string;
+}) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const filtered = query
+    ? teams.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()))
+    : teams;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative z-10 flex w-full max-w-sm flex-col rounded-t-2xl border border-slate-700 bg-slate-900 shadow-2xl sm:rounded-2xl" style={{ maxHeight: "70dvh" }}>
+        <div className="flex shrink-0 items-center gap-2 border-b border-slate-800 px-3 py-2.5">
+          <svg viewBox="0 0 16 16" aria-hidden className="h-3.5 w-3.5 shrink-0 fill-slate-500">
+            <path d="M6.5 1a5.5 5.5 0 1 0 3.45 9.86l3.1 3.09a.75.75 0 1 0 1.06-1.06l-3.09-3.1A5.5 5.5 0 0 0 6.5 1ZM2.5 6.5a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z" />
+          </svg>
+          <input
+            ref={inputRef}
+            type="search"
+            aria-label={`Caută ${ariaLabel}`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Caută echipă…"
+            className="flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none"
+          />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Închide"
+            className="shrink-0 rounded-full p-1 text-slate-500 transition hover:text-slate-300"
+          >
+            <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3 fill-current">
+              <path d="M1.5 1.5 10.5 10.5M10.5 1.5 1.5 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            </svg>
+          </button>
+        </div>
+        <ul
+          role="listbox"
+          aria-label={ariaLabel}
+          className="overflow-y-auto divide-y divide-slate-800/50"
+        >
+          {filtered.map((t) => (
+            <li
+              key={t.id}
+              role="option"
+              aria-selected={false}
+              onClick={() => onSelect(t.id)}
+              className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-slate-800/60 active:bg-slate-800"
+            >
+              <span className="text-2xl leading-none" aria-hidden>{t.flagEmoji}</span>
+              <span className="text-sm font-medium text-slate-100">{t.name}</span>
+              {showPot && (
+                <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Urna {t.pot}
+                </span>
+              )}
+            </li>
+          ))}
+          {filtered.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-slate-500">
+              Nicio echipă găsită
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
   );
 }
 
