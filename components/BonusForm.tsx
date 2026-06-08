@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Team = { id: number; name: string; flagEmoji: string; pot: number };
 
@@ -522,7 +523,7 @@ function TeamPickerDialog({
     ? teams.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()))
     : teams;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -582,7 +583,8 @@ function TeamPickerDialog({
           )}
         </ul>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
