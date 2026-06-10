@@ -58,8 +58,7 @@ export async function POST(req: Request) {
   }
 
   const snapshot = await buildSnapshot(prisma);
-  const json = JSON.stringify(snapshot, null, 2);
-  const push = await pushSnapshotToGithub(json, snapshot.counts);
+  const push = await pushSnapshotToGithub(snapshot);
 
   if (!push.ok) {
     // Don't fail the cron — log the error and return 200 so the cron doesn't
@@ -69,6 +68,16 @@ export async function POST(req: Request) {
       { ok: false, counts: snapshot.counts, error: push.error },
       { status: 200 }
     );
+  }
+
+  // Data unchanged since the last backup — no commit made, nothing to log.
+  if ("skipped" in push) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      counts: snapshot.counts,
+      timestamp: snapshot.timestamp,
+    });
   }
 
   await logAdminAction(prisma, "<cron>", "snapshot.push", {

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 
 /**
@@ -5,9 +6,15 @@ import type { PrismaClient } from "@prisma/client";
  * deliberately excluded — those are recreatable from prisma/data/*.ts via
  * `npm run db:bootstrap`. The audit log is included so a restore retains
  * the history of admin actions.
+ *
+ * `dataHash` is a sha256 over the data arrays only (NOT the timestamp), so
+ * two snapshots with identical data hash identically. The push path uses it
+ * to skip redundant commits when nothing actually changed — important for
+ * frequent backups so the backup repo only gets a commit on real changes.
  */
 export type Snapshot = {
   timestamp: string;
+  dataHash: string;
   counts: Record<string, number>;
   users: unknown[];
   matchPredictions: unknown[];
@@ -28,8 +35,21 @@ export async function buildSnapshot(prisma: PrismaClient): Promise<Snapshot> {
       prisma.adminAuditLog.findMany({ orderBy: { id: "asc" } }),
     ]);
 
+  const data = {
+    users,
+    matchPredictions,
+    groupStandingPredictions,
+    bonusPrediction,
+    inviteCodes,
+    adminAuditLog,
+  };
+  const dataHash = createHash("sha256")
+    .update(JSON.stringify(data))
+    .digest("hex");
+
   return {
     timestamp: new Date().toISOString(),
+    dataHash,
     counts: {
       users: users.length,
       matchPredictions: matchPredictions.length,
@@ -38,31 +58,30 @@ export async function buildSnapshot(prisma: PrismaClient): Promise<Snapshot> {
       inviteCodes: inviteCodes.length,
       adminAuditLog: adminAuditLog.length,
     },
-    users,
-    matchPredictions,
-    groupStandingPredictions,
-    bonusPrediction,
-    inviteCodes,
-    adminAuditLog,
+    ...data,
   };
 }
+
+export type PushResult =
+  | { ok: true; commitSha: string }
+  | { ok: true; skipped: true }
+  | { ok: false; error: string };
 
 /**
  * PUT a JSON snapshot to a file in a GitHub repo using the Contents API.
  * Uses the existing file's SHA (if any) to overwrite — so the path stays
- * stable and the commit history of that file IS the backup history.
+ * stable and the commit history of that file IS the backup history. Skips
+ * the write entirely when the existing file's dataHash matches.
  *
  * Env vars:
- *   BACKUP_GITHUB_REPO   — "owner/repo" (private repo recommended; password
- *                          hashes + emails go in here)
+ *   BACKUP_GITHUB_REPO   — "owner/repo" (private repo — password hashes go in here)
  *   BACKUP_GITHUB_TOKEN  — fine-grained PAT with contents:write on that repo
  *   BACKUP_GITHUB_BRANCH — optional, default "main"
  *   BACKUP_GITHUB_PATH   — optional, default "snapshot.json"
  */
-export async function pushSnapshotToGithub(json: string, counts: Record<string, number>): Promise<{
-  ok: true;
-  commitSha: string;
-} | { ok: false; error: string }> {
+export async function pushSnapshotToGithub(
+  snapshot: Snapshot
+): Promise<PushResult> {
   const repo = process.env.BACKUP_GITHUB_REPO;
   const token = process.env.BACKUP_GITHUB_TOKEN;
   const branch = process.env.BACKUP_GITHUB_BRANCH ?? "main";
@@ -72,40 +91,48 @@ export async function pushSnapshotToGithub(json: string, counts: Record<string, 
     return { ok: false, error: "BACKUP_GITHUB_REPO or BACKUP_GITHUB_TOKEN not set" };
   }
 
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+
   // GitHub's Contents API requires the current file's SHA to overwrite.
-  // Fetch it first; treat 404 as "no existing file" (first push).
+  // Fetch it first; treat 404 as "no existing file" (first push). Decode the
+  // existing content to compare dataHash and short-circuit no-op pushes.
   const getRes = await fetch(
     `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-    }
+    { headers }
   );
   let sha: string | undefined;
   if (getRes.ok) {
-    const existing = (await getRes.json()) as { sha?: string };
+    const existing = (await getRes.json()) as { sha?: string; content?: string };
     sha = existing.sha;
+    if (existing.content) {
+      try {
+        const decoded = Buffer.from(existing.content, "base64").toString("utf8");
+        const prev = JSON.parse(decoded) as { dataHash?: string };
+        if (prev.dataHash && prev.dataHash === snapshot.dataHash) {
+          return { ok: true, skipped: true };
+        }
+      } catch {
+        // Unparseable existing file — fall through and overwrite it.
+      }
+    }
   } else if (getRes.status !== 404) {
     return { ok: false, error: `GitHub GET ${getRes.status}: ${await getRes.text()}` };
   }
 
-  const userCount = counts.users ?? 0;
-  const predCount = counts.matchPredictions ?? 0;
+  const json = JSON.stringify(snapshot, null, 2);
+  const userCount = snapshot.counts.users ?? 0;
+  const predCount = snapshot.counts.matchPredictions ?? 0;
   const putRes = await fetch(
     `https://api.github.com/repos/${repo}/contents/${path}`,
     {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
-      },
+      headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: `snapshot · ${userCount} users · ${predCount} match-preds · ${new Date().toISOString()}`,
+        message: `snapshot · ${userCount} users · ${predCount} match-preds · ${snapshot.timestamp}`,
         content: Buffer.from(json).toString("base64"),
         branch,
         ...(sha ? { sha } : {}),
