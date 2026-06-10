@@ -55,9 +55,26 @@ describe("GroupStandingsForm", () => {
     expect(screen.getByText(/ultima/i)).toBeInTheDocument();
   });
 
-  it("save button is disabled until the order is changed", () => {
+  it("allows saving the default pot order (button enabled, labelled Salvează)", () => {
+    // The default ordering IS a valid prediction — users shouldn't have to
+    // drag before they can save it. See commit 97d7f01.
     render(<GroupStandingsForm {...baseProps} />);
-    expect(screen.getByRole("button", { name: /salv/i })).toBeDisabled();
+    const btn = screen.getByRole("button", { name: /salv/i });
+    expect(btn).toBeEnabled();
+    expect(btn).toHaveTextContent(/salvează/i);
+  });
+
+  it("locks the button to 'Salvat ✓' after saving the default order", async () => {
+    render(<GroupStandingsForm {...baseProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /salvează/i }));
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/predictions/standings",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    const btn = await screen.findByRole("button", { name: /salvat/i });
+    expect(btn).toBeDisabled();
   });
 
   it("posts the standings on save after a keyboard-driven reorder", async () => {

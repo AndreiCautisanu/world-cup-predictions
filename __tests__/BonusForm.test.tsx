@@ -23,6 +23,14 @@ const baseProps = {
   locked: false,
 };
 
+// The team pickers are now buttons (aria-label = category) that open a portal
+// dialog with a searchable role="listbox" of role="option" items. Pick = open
+// the category, click the option by team name.
+function pickTeam(category: RegExp, team: RegExp) {
+  fireEvent.click(screen.getByRole("button", { name: category }));
+  fireEvent.click(screen.getByRole("option", { name: team }));
+}
+
 describe("BonusForm", () => {
   beforeEach(() => {
     global.fetch = jest.fn().mockResolvedValue({
@@ -37,36 +45,38 @@ describe("BonusForm", () => {
 
   it("renders all 4 bonus categories", () => {
     render(<BonusForm {...baseProps} />);
-    expect(screen.getByLabelText(/campion/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/finalist/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /campion/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /finalist/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/golgheter/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/surpriza/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /surpriza/i })).toBeInTheDocument();
   });
 
   it("filters dark horse options to pots 3 and 4 only", () => {
     render(<BonusForm {...baseProps} />);
-    const darkHorseSelect = screen.getByLabelText(/surpriza/i) as HTMLSelectElement;
-    const optionValues = Array.from(darkHorseSelect.options)
-      .filter((o) => o.value !== "")
-      .map((o) => Number(o.value));
-    expect(optionValues.sort()).toEqual([5, 6, 7, 8]);
+    fireEvent.click(screen.getByRole("button", { name: /surpriza/i }));
+    const names = screen.getAllByRole("option").map((o) => o.textContent ?? "");
+    expect(names).toHaveLength(4);
+    expect(names.some((n) => /Ecuador/.test(n))).toBe(true);
+    expect(names.some((n) => /Norvegia/.test(n))).toBe(true);
+    expect(names.some((n) => /Curaçao/.test(n))).toBe(true);
+    expect(names.some((n) => /Uzbekistan/.test(n))).toBe(true);
+    // A pot-1 team must NOT be offered as a dark horse.
+    expect(names.some((n) => /Argentina/.test(n))).toBe(false);
   });
 
-  it("disables inputs and hides save when locked", () => {
+  it("disables pickers and hides save when locked", () => {
     render(<BonusForm {...baseProps} locked={true} />);
-    expect(screen.getByLabelText(/campion/i)).toBeDisabled();
-    expect(screen.getByLabelText(/finalist/i)).toBeDisabled();
+    expect(screen.getByRole("button", { name: /campion/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /finalist/i })).toBeDisabled();
     expect(screen.getByLabelText(/golgheter/i)).toBeDisabled();
-    expect(screen.getByLabelText(/surpriza/i)).toBeDisabled();
+    expect(screen.getByRole("button", { name: /surpriza/i })).toBeDisabled();
     expect(screen.queryByRole("button", { name: /salv/i })).not.toBeInTheDocument();
   });
 
   it("warns when champion equals runner-up and disables save", () => {
     render(<BonusForm {...baseProps} />);
-    const champion = screen.getByLabelText(/campion/i) as HTMLSelectElement;
-    const runnerUp = screen.getByLabelText(/finalist/i) as HTMLSelectElement;
-    fireEvent.change(champion, { target: { value: "1" } });
-    fireEvent.change(runnerUp, { target: { value: "1" } });
+    pickTeam(/campion/i, /Argentina/);
+    pickTeam(/finalist/i, /Argentina/);
     fireEvent.change(screen.getByLabelText(/golgheter/i), {
       target: { value: "Messi" },
     });
@@ -76,18 +86,12 @@ describe("BonusForm", () => {
 
   it("posts the bonus prediction on save", async () => {
     render(<BonusForm {...baseProps} />);
-    fireEvent.change(screen.getByLabelText(/campion/i), {
-      target: { value: "1" },
-    });
-    fireEvent.change(screen.getByLabelText(/finalist/i), {
-      target: { value: "3" },
-    });
+    pickTeam(/campion/i, /Argentina/);
+    pickTeam(/finalist/i, /Maroc/);
     fireEvent.change(screen.getByLabelText(/golgheter/i), {
       target: { value: "Lionel Messi" },
     });
-    fireEvent.change(screen.getByLabelText(/surpriza/i), {
-      target: { value: "5" },
-    });
+    pickTeam(/surpriza/i, /Ecuador/);
     fireEvent.click(screen.getByRole("button", { name: /salv/i }));
 
     await waitFor(() => {
@@ -106,7 +110,7 @@ describe("BonusForm", () => {
     });
   });
 
-  it("pre-fills inputs from the initial prop", () => {
+  it("pre-fills the pickers from the initial prop", () => {
     render(
       <BonusForm
         {...baseProps}
@@ -118,31 +122,19 @@ describe("BonusForm", () => {
         }}
       />
     );
-    expect(
-      (screen.getByLabelText(/campion/i) as HTMLSelectElement).value
-    ).toBe("2");
-    expect(
-      (screen.getByLabelText(/finalist/i) as HTMLSelectElement).value
-    ).toBe("4");
+    expect(screen.getByRole("button", { name: /campion/i })).toHaveTextContent(/Franța/);
+    expect(screen.getByRole("button", { name: /finalist/i })).toHaveTextContent(/Senegal/);
     expect(
       (screen.getByLabelText(/golgheter/i) as HTMLInputElement).value
     ).toBe("Mbappé");
-    expect(
-      (screen.getByLabelText(/surpriza/i) as HTMLSelectElement).value
-    ).toBe("6");
+    expect(screen.getByRole("button", { name: /surpriza/i })).toHaveTextContent(/Norvegia/);
   });
 
-  it("requires a non-empty top scorer (save disabled if blank)", () => {
+  it("keeps save disabled while the top scorer is blank", () => {
     render(<BonusForm {...baseProps} />);
-    fireEvent.change(screen.getByLabelText(/campion/i), {
-      target: { value: "1" },
-    });
-    fireEvent.change(screen.getByLabelText(/finalist/i), {
-      target: { value: "3" },
-    });
-    fireEvent.change(screen.getByLabelText(/surpriza/i), {
-      target: { value: "5" },
-    });
+    pickTeam(/campion/i, /Argentina/);
+    pickTeam(/finalist/i, /Maroc/);
+    pickTeam(/surpriza/i, /Ecuador/);
     expect(screen.getByRole("button", { name: /salv/i })).toBeDisabled();
   });
 
@@ -153,21 +145,13 @@ describe("BonusForm", () => {
       json: async () => ({ error: "Calul negru trebuie să fie din urna 3 sau urna 4" }),
     });
     render(<BonusForm {...baseProps} />);
-    fireEvent.change(screen.getByLabelText(/campion/i), {
-      target: { value: "1" },
-    });
-    fireEvent.change(screen.getByLabelText(/finalist/i), {
-      target: { value: "3" },
-    });
+    pickTeam(/campion/i, /Argentina/);
+    pickTeam(/finalist/i, /Maroc/);
     fireEvent.change(screen.getByLabelText(/golgheter/i), {
       target: { value: "Messi" },
     });
-    fireEvent.change(screen.getByLabelText(/surpriza/i), {
-      target: { value: "5" },
-    });
+    pickTeam(/surpriza/i, /Ecuador/);
     fireEvent.click(screen.getByRole("button", { name: /salv/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/cal/i)).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByText(/cal/i)).toBeInTheDocument());
   });
 });
