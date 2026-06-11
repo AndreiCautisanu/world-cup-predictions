@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { FlagImage } from "./FlagImage";
 import {
   DndContext,
   KeyboardSensor,
@@ -298,9 +299,7 @@ function SortableRow({
         </span>
       </div>
 
-      <span className="text-3xl leading-none drop-shadow" aria-hidden>
-        {team.flagEmoji}
-      </span>
+      <FlagImage emoji={team.flagEmoji} className="h-8 w-auto shrink-0" />
 
       <span className="flex-1 truncate text-base font-bold tracking-tight text-slate-50 sm:text-lg">
         {team.name}

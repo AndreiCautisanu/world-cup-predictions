@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FlagImage } from "@/components/FlagImage";
 import type { MatchStatus, Round } from "@prisma/client";
 
 type Team = { id: number; name: string; flagEmoji: string };
@@ -283,7 +284,7 @@ function TeamSlot({
           align === "end" ? "justify-end text-right" : "justify-start text-left"
         }`}
       >
-        <span className="text-2xl leading-none">{team.flagEmoji}</span>
+        <FlagImage emoji={team.flagEmoji} className="h-6 w-auto shrink-0" />
         <span className="truncate font-semibold text-slate-100">{team.name}</span>
       </div>
     );

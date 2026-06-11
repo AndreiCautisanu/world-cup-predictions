@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CountdownLock } from "./CountdownLock";
+import { FlagImage } from "./FlagImage";
 import { isKnockoutRound } from "@/lib/predictions";
 import {
   matchPredictionTier,
@@ -383,9 +384,7 @@ function TeamSide({ team, align }: { team: Team; align: "left" | "right" }) {
   return (
     <div className={`flex min-w-0 items-center gap-2.5 ${align === "right" ? "justify-end" : "justify-start"}`}>
       {align === "right" && <TeamName name={team.name} />}
-      <span className="text-3xl leading-none drop-shadow" aria-hidden>
-        {team.flagEmoji}
-      </span>
+      <FlagImage emoji={team.flagEmoji} className="h-8 w-auto shrink-0" />
       {align === "left" && <TeamName name={team.name} />}
     </div>
   );
@@ -434,18 +433,29 @@ function ScoreInput({
   onChange: (n: number) => void;
   ariaLabel: string;
 }) {
+  const [raw, setRaw] = useState(String(value));
+
   return (
     <input
-      type="number"
+      type="text"
       inputMode="numeric"
-      min={0}
-      max={20}
-      step={1}
-      value={value}
+      pattern="[0-9]*"
+      value={raw}
       disabled={disabled}
       aria-label={ariaLabel}
       onFocus={(e) => e.currentTarget.select()}
-      onChange={(e) => onChange(Number(e.target.value))}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+        setRaw(digits);
+        if (digits !== "") {
+          onChange(clampScore(parseInt(digits, 10)));
+        }
+      }}
+      onBlur={() => {
+        const n = raw === "" ? 0 : clampScore(parseInt(raw, 10) || 0);
+        setRaw(String(n));
+        onChange(n);
+      }}
       className="score-input font-display h-12 w-12 rounded-lg border border-slate-700 bg-slate-950/70 text-center text-2xl font-bold text-slate-50 tabular-nums shadow-inner outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-60"
     />
   );

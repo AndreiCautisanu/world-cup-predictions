@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { matchPredictionTier, MATCH_TIER_LABEL } from "@/lib/match-tier";
+import { FlagImage } from "@/components/FlagImage";
 
 export const dynamic = "force-dynamic";
 
@@ -103,10 +104,12 @@ export default async function AdminUserDetail({
                   <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                     {ROUND_LABEL[p.match.round] ?? p.match.round}
                   </span>
-                  <span className="flex-1 text-center text-sm text-slate-100">
-                    {p.match.homeTeam?.flagEmoji ?? "🏳️"} {p.match.homeTeam?.name ?? "—"}{" "}
+                  <span className="flex flex-1 flex-wrap items-center justify-center gap-1 text-center text-sm text-slate-100">
+                    {p.match.homeTeam && <FlagImage emoji={p.match.homeTeam.flagEmoji} className="h-4 w-auto" />}
+                    {p.match.homeTeam?.name ?? "—"}{" "}
                     <strong className="tabular-nums">{p.homeScore}–{p.awayScore}</strong>{" "}
-                    {p.match.awayTeam?.name ?? "—"} {p.match.awayTeam?.flagEmoji ?? "🏳️"}
+                    {p.match.awayTeam?.name ?? "—"}
+                    {p.match.awayTeam && <FlagImage emoji={p.match.awayTeam.flagEmoji} className="h-4 w-auto" />}
                   </span>
                   <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                     {p.pointsAwarded == null
@@ -145,7 +148,8 @@ export default async function AdminUserDetail({
                     .map((r) => (
                       <li key={r.id} className="flex items-center gap-2 text-sm text-slate-100">
                         <span className="w-4 text-slate-500">{r.position}.</span>
-                        <span>{r.team.flagEmoji} {r.team.name}</span>
+                        <FlagImage emoji={r.team.flagEmoji} className="h-4 w-auto shrink-0" />
+                        <span>{r.team.name}</span>
                         {r.pointsAwarded != null && (
                           <span className="ml-auto text-[10px] uppercase tracking-[0.18em] text-slate-500">
                             {r.pointsAwarded} pct
@@ -171,12 +175,13 @@ export default async function AdminUserDetail({
           </p>
         ) : (
           <ul className="space-y-2">
-            {[
-              { label: "Campioană", value: `${bonus.champion.flagEmoji} ${bonus.champion.name}`, pts: bonus.championPts },
-              { label: "Finalistă", value: `${bonus.runnerUp.flagEmoji} ${bonus.runnerUp.name}`, pts: bonus.runnerUpPts },
-              { label: "Golgheter", value: bonus.topScorerName, pts: bonus.topScorerPts },
-              { label: "Surpriză", value: `${bonus.darkHorse.flagEmoji} ${bonus.darkHorse.name}`, pts: bonus.darkHorsePts },
-            ].map((b) => (
+            {(
+              [
+                { label: "Campioană", team: bonus.champion, pts: bonus.championPts },
+                { label: "Finalistă", team: bonus.runnerUp, pts: bonus.runnerUpPts },
+                { label: "Surpriză", team: bonus.darkHorse, pts: bonus.darkHorsePts },
+              ] as const
+            ).map((b) => (
               <li
                 key={b.label}
                 className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-2"
@@ -184,12 +189,24 @@ export default async function AdminUserDetail({
                 <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                   {b.label}
                 </span>
-                <span className="flex-1 text-center text-sm text-slate-100">{b.value}</span>
+                <span className="flex flex-1 items-center justify-center gap-1.5 text-sm text-slate-100">
+                  <FlagImage emoji={b.team.flagEmoji} className="h-4 w-auto shrink-0" />
+                  {b.team.name}
+                </span>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                   {b.pts == null ? "—" : `${b.pts} pct`}
                 </span>
               </li>
             ))}
+            <li className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Golgheter
+              </span>
+              <span className="flex-1 text-center text-sm text-slate-100">{bonus.topScorerName}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                {bonus.topScorerPts == null ? "—" : `${bonus.topScorerPts} pct`}
+              </span>
+            </li>
           </ul>
         )}
       </section>

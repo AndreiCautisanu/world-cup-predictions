@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Round } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isMatchLocked } from "@/lib/locking";
+import { FlagImage } from "@/components/FlagImage";
 
 export const dynamic = "force-dynamic";
 
@@ -231,11 +232,11 @@ function TeamSide({
   }
   return (
     <div className={`flex min-w-0 items-center gap-2 ${alignment}`}>
-      {align === "left" && <span aria-hidden className="shrink-0 text-xl leading-none">{team.flagEmoji}</span>}
+      {align === "left" && <FlagImage emoji={team.flagEmoji} className="h-5 w-auto shrink-0" />}
       <span className="font-display truncate text-base font-semibold uppercase tracking-wide text-slate-100 sm:text-lg">
         {team.name}
       </span>
-      {align === "right" && <span aria-hidden className="shrink-0 text-xl leading-none">{team.flagEmoji}</span>}
+      {align === "right" && <FlagImage emoji={team.flagEmoji} className="h-5 w-auto shrink-0" />}
     </div>
   );
 }

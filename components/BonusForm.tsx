@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { FlagImage } from "./FlagImage";
 
 type Team = { id: number; name: string; flagEmoji: string; pot: number };
 
@@ -381,12 +382,7 @@ function TrophyCard({
       >
         {selectedTeam ? (
           <div className="flex items-center gap-4">
-            <span
-              className="text-5xl leading-none drop-shadow sm:text-6xl"
-              aria-hidden
-            >
-              {selectedTeam.flagEmoji}
-            </span>
+            <FlagImage emoji={selectedTeam.flagEmoji} className="h-12 w-auto shrink-0 sm:h-16" />
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-xl font-bold tracking-tight text-slate-50 sm:text-2xl">
                 {selectedTeam.name}
@@ -569,7 +565,7 @@ function TeamPickerDialog({
               onClick={() => onSelect(t.id)}
               className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-slate-800/60 active:bg-slate-800"
             >
-              <span className="text-2xl leading-none" aria-hidden>{t.flagEmoji}</span>
+              <FlagImage emoji={t.flagEmoji} className="h-6 w-auto shrink-0" />
               <span className="text-sm font-medium text-slate-100">{t.name}</span>
               {showPot && (
                 <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">

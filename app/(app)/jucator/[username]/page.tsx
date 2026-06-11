@@ -4,6 +4,7 @@ import type { Round } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { FlagImage } from "@/components/FlagImage";
 import { isTournamentLocked, tournamentLockTime } from "@/lib/locking";
 import { buildDisplayName, summarizeLeaderboardRows } from "@/lib/leaderboard";
 import { matchPredictionTier, MATCH_TIER_LABEL, type MatchTier } from "@/lib/match-tier";
@@ -283,9 +284,7 @@ export default async function JucatorPage({
                         <span className="font-display w-6 shrink-0 text-center text-xs font-bold tabular-nums text-slate-500">
                           {r.position}
                         </span>
-                        <span className="shrink-0 text-lg leading-none" aria-hidden>
-                          {r.team.flagEmoji}
-                        </span>
+                        <FlagImage emoji={r.team.flagEmoji} className="h-5 w-auto shrink-0" />
                         <span className="truncate text-sm font-medium text-slate-100">
                           {r.team.name}
                         </span>
@@ -445,11 +444,11 @@ function TeamLabel({
   }
   return (
     <div className={`flex min-w-0 items-center gap-2 ${alignment}`}>
-      {align === "left" && <span aria-hidden className="shrink-0 text-xl leading-none">{team.flagEmoji}</span>}
+      {align === "left" && <FlagImage emoji={team.flagEmoji} className="h-5 w-auto shrink-0" />}
       <span className="font-display truncate text-sm font-semibold uppercase tracking-wide text-slate-100 sm:text-base">
         {team.name}
       </span>
-      {align === "right" && <span aria-hidden className="shrink-0 text-xl leading-none">{team.flagEmoji}</span>}
+      {align === "right" && <FlagImage emoji={team.flagEmoji} className="h-5 w-auto shrink-0" />}
     </div>
   );
 }
@@ -516,7 +515,7 @@ function BonusCard({
         <PointsBadge pts={pts} />
       </div>
       <div className="mt-3 flex min-w-0 items-center gap-3">
-        {team && <span aria-hidden className="shrink-0 text-3xl leading-none">{team.flagEmoji}</span>}
+        {team && <FlagImage emoji={team.flagEmoji} className="h-8 w-auto shrink-0" />}
         <p className="font-display truncate text-xl font-extrabold uppercase tracking-tight text-slate-50">
           {team ? team.name : value}
         </p>

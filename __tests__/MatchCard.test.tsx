@@ -50,7 +50,7 @@ describe("MatchCard", () => {
     render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
     expect(screen.getByText(/italia/i)).toBeInTheDocument();
     expect(screen.getByText(/brazilia/i)).toBeInTheDocument();
-    expect(screen.getAllByRole("spinbutton")).toHaveLength(2);
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
   });
 
   it("does not show ET/pens toggles for a group match", () => {
@@ -82,7 +82,7 @@ describe("MatchCard", () => {
         isLocked={true}
       />
     );
-    const inputs = screen.getAllByRole("spinbutton");
+    const inputs = screen.getAllByRole("textbox");
     inputs.forEach((i) => expect(i).toBeDisabled());
     expect(screen.queryByRole("button", { name: /salv/i })).not.toBeInTheDocument();
   });
@@ -103,7 +103,7 @@ describe("MatchCard", () => {
       />
     );
     // Has initial → before user edits, no diff to save → button should be "Salvat" indicator (disabled or muted)
-    const [homeInput] = screen.getAllByRole("spinbutton");
+    const [homeInput] = screen.getAllByRole("textbox");
     fireEvent.change(homeInput, { target: { value: "3" } });
     expect(screen.getByRole("button", { name: /actualizează/i })).toBeInTheDocument();
   });
@@ -118,7 +118,7 @@ describe("MatchCard", () => {
         initialAway={1}
       />
     );
-    const [homeInput] = screen.getAllByRole("spinbutton") as HTMLInputElement[];
+    const [homeInput] = screen.getAllByRole("textbox") as HTMLInputElement[];
     const selectSpy = jest.spyOn(homeInput, "select");
     fireEvent.focus(homeInput);
     expect(selectSpy).toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe("MatchCard", () => {
       />
     );
     // Need to dirty the card first since clean-saved cards have no diff to save
-    const [homeInput] = screen.getAllByRole("spinbutton");
+    const [homeInput] = screen.getAllByRole("textbox");
     fireEvent.change(homeInput, { target: { value: "3" } });
     const saveButton = screen.getByRole("button", { name: /actualizează/i });
     fireEvent.click(saveButton);
@@ -164,7 +164,7 @@ describe("MatchCard", () => {
     window.addEventListener("pronosticuri:dirty", handler);
     try {
       render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
-      const [homeInput] = screen.getAllByRole("spinbutton");
+      const [homeInput] = screen.getAllByRole("textbox");
       fireEvent.change(homeInput, { target: { value: "3" } });
       // Wait one microtask cycle so the dirty-event from typing flushes
       await Promise.resolve();
@@ -180,7 +180,7 @@ describe("MatchCard", () => {
   it("keeps the button as 'Salvat ✓' (not 'Salvează') indefinitely after saving a new prediction", async () => {
     jest.useRealTimers(); // real timers so the 2.5s "saved" flash actually elapses
     render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
-    const [homeInput] = screen.getAllByRole("spinbutton");
+    const [homeInput] = screen.getAllByRole("textbox");
     fireEvent.change(homeInput, { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: /^salvează$/i }));
     // Wait past the 2.5s status auto-reset; button must remain in a "saved" state
@@ -204,7 +204,7 @@ describe("MatchCard", () => {
       />
     );
     // Dirty the card by bumping the home score; predictsEt/Pens remain at their initial values
-    const [homeInput] = screen.getAllByRole("spinbutton");
+    const [homeInput] = screen.getAllByRole("textbox");
     fireEvent.change(homeInput, { target: { value: "1" } });
     const saveButton = screen.getByRole("button", { name: /actualizează/i });
     fireEvent.click(saveButton);
