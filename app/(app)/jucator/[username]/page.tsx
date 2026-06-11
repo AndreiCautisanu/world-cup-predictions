@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { FlagImage } from "@/components/FlagImage";
-import { isTournamentLocked, tournamentLockTime } from "@/lib/locking";
+import { isMatchLocked, LOCK_OFFSET_MS, tournamentLockTime } from "@/lib/locking";
 import { buildDisplayName, summarizeLeaderboardRows } from "@/lib/leaderboard";
 import { matchPredictionTier, MATCH_TIER_LABEL, type MatchTier } from "@/lib/match-tier";
 
@@ -91,7 +91,7 @@ export default async function JucatorPage({
     select: { id: true },
   });
   const tournamentStarted =
-    isTournamentLocked(tournamentStart, now) || anyGroupFinished !== null;
+    (tournamentStart !== null && isMatchLocked(tournamentStart, now)) || anyGroupFinished !== null;
 
   // ── Compute totals from ALL predictions (visible or not) so the header
   //    reflects the leaderboard exactly; the visibility filter only affects
@@ -131,10 +131,11 @@ export default async function JucatorPage({
   //    already FINISHED (the admin may have entered a result before the
   //    scheduled kickoff e.g. for demo data; once a result exists the
   //    prediction can no longer change so it's safe to show). ─────────
+  const lockCutoff = new Date(now.getTime() + LOCK_OFFSET_MS);
   const visibleMatchPreds = await prisma.matchPrediction.findMany({
     where: {
       userId: user.id,
-      match: { OR: [{ kickoffTime: { lte: now } }, { status: "FINISHED" }] },
+      match: { OR: [{ kickoffTime: { lte: lockCutoff } }, { status: "FINISHED" }] },
     },
     include: {
       match: { include: { homeTeam: true, awayTeam: true, group: true } },

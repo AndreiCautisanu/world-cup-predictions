@@ -1,4 +1,4 @@
-const LOCK_OFFSET_MS = 60 * 60 * 1000;
+export const LOCK_OFFSET_MS = 60 * 60 * 1000;
 
 export function lockTimeFor(kickoff: Date): Date {
   return new Date(kickoff.getTime() - LOCK_OFFSET_MS);
