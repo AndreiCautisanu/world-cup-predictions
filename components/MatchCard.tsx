@@ -384,7 +384,7 @@ function TeamSide({ team, align }: { team: Team; align: "left" | "right" }) {
   return (
     <div className={`flex min-w-0 items-center gap-2.5 ${align === "right" ? "justify-end" : "justify-start"}`}>
       {align === "right" && <TeamName name={team.name} />}
-      <FlagImage emoji={team.flagEmoji} className="h-8 w-auto shrink-0" />
+      <FlagImage emoji={team.flagEmoji} className="h-5 w-auto shrink-0" />
       {align === "left" && <TeamName name={team.name} />}
     </div>
   );
