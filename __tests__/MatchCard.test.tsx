@@ -87,6 +87,45 @@ describe("MatchCard", () => {
     expect(screen.queryByRole("button", { name: /salv/i })).not.toBeInTheDocument();
   });
 
+  it("shows the actual result next to the points badge when scored", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        homeTeam={italy}
+        awayTeam={brazil}
+        isLocked
+        initialHome={0}
+        initialAway={0}
+        pointsAwarded={0}
+        actualHome={2}
+        actualAway={1}
+      />
+    );
+    expect(screen.getByText(/rezultat/i)).toBeInTheDocument();
+    expect(screen.getByText(/2\s*–\s*1/)).toBeInTheDocument();
+    expect(screen.getByText(/ratat/i)).toBeInTheDocument();
+  });
+
+  it("marks a knockout result that went to penalties", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="R16"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+        isLocked
+        initialHome={1}
+        initialAway={1}
+        pointsAwarded={4}
+        actualHome={1}
+        actualAway={1}
+        wentToPens
+      />
+    );
+    expect(screen.getByText(/\(pen\)/i)).toBeInTheDocument();
+  });
+
   it("labels the button 'Salvează' when never saved", () => {
     render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
     expect(screen.getByRole("button", { name: /^salvează$/i })).toBeInTheDocument();

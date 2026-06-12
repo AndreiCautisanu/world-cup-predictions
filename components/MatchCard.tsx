@@ -52,6 +52,12 @@ type Props = {
   initialPredictsEt?: boolean | null;
   initialPredictsPens?: boolean | null;
   pointsAwarded?: number | null;
+  // Actual match result, present once the match has finished. Shown alongside
+  // the points badge so a scored card explains itself without navigating away.
+  actualHome?: number | null;
+  actualAway?: number | null;
+  wentToEt?: boolean | null;
+  wentToPens?: boolean | null;
   isLocked: boolean;
 };
 
@@ -221,6 +227,11 @@ export function MatchCard(props: Props) {
   const hasPoints = props.pointsAwarded !== null && props.pointsAwarded !== undefined;
   const tier: MatchTier = hasPoints ? matchPredictionTier(props.pointsAwarded, props.round) : "none";
   const scoredTier = tier !== "none" ? (tier as Exclude<MatchTier, "none">) : null;
+  const hasResult =
+    props.actualHome !== null &&
+    props.actualHome !== undefined &&
+    props.actualAway !== null &&
+    props.actualAway !== undefined;
 
   const chrome = (() => {
     if (scoredTier) return TIER_CHROME[scoredTier];
@@ -385,7 +396,20 @@ export function MatchCard(props: Props) {
           )}
 
           {scoredTier && (
-            <div className="mt-3 flex justify-center">
+            <div className="mt-3 flex flex-col items-center gap-1.5">
+              {hasResult && (
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Rezultat{" "}
+                  <span className="font-display text-slate-100 tabular-nums">
+                    {props.actualHome} – {props.actualAway}
+                  </span>
+                  {props.wentToPens ? (
+                    <span className="ml-1 text-amber-300/80">(pen)</span>
+                  ) : props.wentToEt ? (
+                    <span className="ml-1 text-amber-300/80">(prel)</span>
+                  ) : null}
+                </span>
+              )}
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] ${TIER_BADGE[scoredTier]}`}
               >
