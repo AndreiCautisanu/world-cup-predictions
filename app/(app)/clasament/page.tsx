@@ -39,6 +39,17 @@ function categoryShare(row: LeaderboardRow, key: (typeof CATEGORIES)[number]["ke
   return (row[key] / row.total) * 100;
 }
 
+/** Assign dense ranks: players on equal points share the same rank. */
+function computeRanks(rows: LeaderboardRow[]): number[] {
+  const ranks: number[] = [];
+  let rank = 1;
+  for (let i = 0; i < rows.length; i++) {
+    if (i > 0 && rows[i].total !== rows[i - 1].total) rank = i + 1;
+    ranks.push(rank);
+  }
+  return ranks;
+}
+
 export default async function ClasamentPage() {
   const meId = getSessionUser(await auth())?.id;
   const rows = await getLeaderboard(prisma);
@@ -47,8 +58,11 @@ export default async function ClasamentPage() {
   const totalPoints = rows.reduce((s, r) => s + r.total, 0);
   const anyPoints = totalPoints > 0;
 
+  const ranks = computeRanks(rows);
   const podium = rows.slice(0, 3);
+  const podiumRanks = ranks.slice(0, 3);
   const rest = rows.slice(3);
+  const restRanks = ranks.slice(3);
 
   return (
     <div className="space-y-8">
@@ -76,18 +90,20 @@ export default async function ClasamentPage() {
       {totalPlayers > 0 && (
         <>
           {podium.length > 0 && (
-            <PodiumHero row={podium[0]} highlighted={meId === podium[0].userId} />
+            <PodiumHero row={podium[0]} place={podiumRanks[0]} highlighted={meId === podium[0].userId} />
           )}
 
           {podium.length > 1 && (
             <section aria-label="Locurile 2 și 3" className="grid gap-3 sm:grid-cols-2">
               {podium.slice(1).map((row, i) => {
-                const place = i + 2;
+                const place = podiumRanks[i + 1];
+                const tied = podiumRanks.filter((r) => r === place).length > 1;
                 return (
                   <PodiumSide
                     key={row.userId}
                     row={row}
                     place={place}
+                    tied={tied}
                     highlighted={meId === row.userId}
                   />
                 );
@@ -102,9 +118,10 @@ export default async function ClasamentPage() {
               </h2>
               <ol className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/40">
                 {rest.map((row, i) => {
-                  const place = i + 4;
+                  const place = restRanks[i];
+                  const tied = restRanks.filter((r) => r === place).length > 1;
                   const isMe = meId === row.userId;
-                  return <LeaderboardRowItem key={row.userId} row={row} place={place} highlighted={isMe} />;
+                  return <LeaderboardRowItem key={row.userId} row={row} place={place} tied={tied} highlighted={isMe} />;
                 })}
               </ol>
             </section>
@@ -117,7 +134,9 @@ export default async function ClasamentPage() {
   );
 }
 
-function PodiumHero({ row, highlighted }: { row: LeaderboardRow; highlighted: boolean }) {
+function PodiumHero({ row, place, highlighted }: { row: LeaderboardRow; place: number; highlighted: boolean }) {
+  const badge = PODIUM_BADGE[place] ?? PODIUM_BADGE[1];
+  const label = PODIUM_LABEL[place] ?? PODIUM_LABEL[1];
   return (
     <article
       className={[
@@ -126,11 +145,11 @@ function PodiumHero({ row, highlighted }: { row: LeaderboardRow; highlighted: bo
       ].join(" ")}
     >
       <div className="flex items-center justify-between gap-3">
-        <span className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 font-display text-lg font-bold ${PODIUM_BADGE[1]}`}>
-          1
+        <span className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 font-display text-lg font-bold ${badge}`}>
+          {place}
         </span>
         <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-amber-200/80">
-          {PODIUM_LABEL[1]}
+          {label}
         </span>
       </div>
 
@@ -171,10 +190,12 @@ function PodiumHero({ row, highlighted }: { row: LeaderboardRow; highlighted: bo
 function PodiumSide({
   row,
   place,
+  tied,
   highlighted,
 }: {
   row: LeaderboardRow;
   place: number;
+  tied?: boolean;
   highlighted: boolean;
 }) {
   const ring = PODIUM_RING[place] ?? "ring-slate-700/50 from-slate-800/30 via-slate-800/10";
@@ -191,7 +212,7 @@ function PodiumSide({
     >
       <div className="flex items-center justify-between">
         <span className={`inline-flex h-9 min-w-9 items-center justify-center rounded-full px-3 font-display text-base font-bold ${badge}`}>
-          {place}
+          {tied ? `=${place}` : place}
         </span>
         <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-400">
           {label}
@@ -224,10 +245,12 @@ function PodiumSide({
 function LeaderboardRowItem({
   row,
   place,
+  tied,
   highlighted,
 }: {
   row: LeaderboardRow;
   place: number;
+  tied?: boolean;
   highlighted: boolean;
 }) {
   return (
@@ -241,7 +264,7 @@ function LeaderboardRowItem({
           ].join(" ")}
         >
           <span className="font-display w-8 shrink-0 text-center text-base font-bold tabular-nums text-slate-400">
-            {place}
+            {tied ? `=${place}` : place}
           </span>
           <div className="min-w-0 flex-1 space-y-1.5">
             <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
