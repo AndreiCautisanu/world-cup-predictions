@@ -84,6 +84,7 @@ const KICKOFF_FORMATTER = new Intl.DateTimeFormat("ro-RO", {
   month: "short",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: "Europe/Bucharest",
 });
 
 function clampScore(value: number): number {

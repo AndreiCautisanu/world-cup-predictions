@@ -30,6 +30,7 @@ const KICKOFF_FORMATTER = new Intl.DateTimeFormat("ro-RO", {
   month: "short",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: "Europe/Bucharest",
 });
 
 const GROUP_ROUNDS: Round[] = ["GROUP_1", "GROUP_2", "GROUP_3"];
