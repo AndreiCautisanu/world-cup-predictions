@@ -189,6 +189,36 @@ describe("MatchCard", () => {
     expect(screen.getByRole("button", { name: /salvat/i })).toBeInTheDocument();
   });
 
+  it("shows the 'see others' button when locked and opens the board", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        match: {
+          id: 42,
+          round: "GROUP_1",
+          status: "FINISHED",
+          homeTeam: italy,
+          awayTeam: brazil,
+          final: false,
+          homeScore: null,
+          awayScore: null,
+          wentToEt: null,
+          wentToPens: null,
+        },
+        participants: [],
+      }),
+    });
+
+    render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} isLocked />);
+
+    const btn = screen.getByRole("button", { name: /vezi ce-au pus ceilal/i });
+    fireEvent.click(btn);
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith("/api/matches/42/predictions")
+    );
+  });
+
   it("includes ET/pens flags in the save body for knockout matches", async () => {
     render(
       <MatchCard

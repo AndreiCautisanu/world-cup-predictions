@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CountdownLock } from "./CountdownLock";
+import { MatchPredictionsModal } from "./MatchPredictionsModal";
 import { FlagImage } from "./FlagImage";
 import { isKnockoutRound } from "@/lib/predictions";
 import {
@@ -116,6 +117,7 @@ export function MatchCard(props: Props) {
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [showBoard, setShowBoard] = useState(false);
 
   const hasSavedEver = lastSaved !== null;
 
@@ -360,6 +362,26 @@ export function MatchCard(props: Props) {
                 {buttonLabel}
               </button>
             </div>
+          )}
+
+          {props.isLocked && (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowBoard(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/70 px-4 py-1.5 text-sm font-semibold text-slate-200 transition hover:border-emerald-400/50 hover:text-emerald-200"
+              >
+                Vezi ce-au pus ceilalți
+              </button>
+            </div>
+          )}
+
+          {showBoard && (
+            <MatchPredictionsModal
+              matchId={props.matchId}
+              round={props.round}
+              onClose={() => setShowBoard(false)}
+            />
           )}
 
           {scoredTier && (
