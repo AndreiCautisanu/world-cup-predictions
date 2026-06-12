@@ -15,10 +15,10 @@ export async function GET(
   }
 
   const { matchId: raw } = await params;
-  const matchId = Number.parseInt(raw, 10);
-  if (!Number.isInteger(matchId)) {
+  if (!/^\d+$/.test(raw)) {
     return NextResponse.json({ error: "Meci invalid" }, { status: 400 });
   }
+  const matchId = Number.parseInt(raw, 10);
 
   const match = await prisma.match.findUnique({
     where: { id: matchId },

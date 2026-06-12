@@ -64,6 +64,15 @@ export function MatchPredictionsModal({ matchId, round, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Lock background scroll while the full-screen overlay is open.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur"
