@@ -7,8 +7,8 @@ name: Sync match results
 #   GitHub's scheduler deprioritises high-frequency schedules under load and
 #   can delay or drop runs entirely — exactly when matches are live and we
 #   need reliability most.  By targeting only the hours when matches can be
-#   active (June–July, 15:00–02:00 UTC) at a 10-minute cadence, we submit
-#   ~79 jobs/day instead of 288, which schedulers pick up far more reliably.
+#   active (June–July, 15:00–02:00 UTC) at a 15-minute cadence, we submit
+#   ~52 jobs/day instead of 288, which schedulers pick up far more reliably.
 #   The sync-results endpoint already skips the football-data.org call when
 #   no match is in its active window (kickoff ±3 h), so off-day runs are
 #   cheap (single DB count, no upstream request).
@@ -25,10 +25,10 @@ name: Sync match results
 
 on:
   schedule:
-    # Every 10 min during peak match hours (15:00–23:59 UTC), June–July.
-    - cron: "*/10 15-23 * 6-7 *"
-    # Every 10 min for late/midnight matches (00:00–01:59 UTC), June–July.
-    - cron: "*/10 0-1 * 6-7 *"
+    # Every 15 min during peak match hours (15:00–23:59 UTC), June–July.
+    - cron: "*/15 15-23 * 6-7 *"
+    # Every 15 min for late/midnight matches (00:00–01:59 UTC), June–July.
+    - cron: "*/15 0-1 * 6-7 *"
     # Once per hour during off-hours (02:00–14:59 UTC), June–July.
     # Catches any delayed or rescheduled matches without burning runner slots.
     - cron: "0 2-14 * 6-7 *"
