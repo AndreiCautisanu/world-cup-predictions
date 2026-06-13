@@ -60,27 +60,38 @@ export async function recalcPointsForMatch(
   const preds = await prisma.matchPrediction.findMany({ where: { matchId } });
   if (preds.length === 0) return;
 
+  // Bucket prediction ids by their computed point value, then issue one
+  // updateMany per distinct value (≤4: group 0/2/4/7, KO 0/4/8/10). One
+  // update-per-row would be N network round-trips inside a single
+  // $transaction — which blows Prisma's 5s interactive-transaction timeout
+  // once participation grows (P2028).
+  const idsByPoints = new Map<number, number[]>();
+  for (const p of preds) {
+    const pts = computePointsForPrediction(
+      {
+        round: match.round,
+        homeScore: match.homeScore!,
+        awayScore: match.awayScore!,
+        wentToEt: match.wentToEt,
+        wentToPens: match.wentToPens,
+      },
+      {
+        homeScore: p.homeScore,
+        awayScore: p.awayScore,
+        predictsEt: p.predictsEt,
+        predictsPens: p.predictsPens,
+      }
+    );
+    const bucket = idsByPoints.get(pts);
+    if (bucket) bucket.push(p.id);
+    else idsByPoints.set(pts, [p.id]);
+  }
+
   await prisma.$transaction(
-    preds.map((p) =>
-      prisma.matchPrediction.update({
-        where: { id: p.id },
-        data: {
-          pointsAwarded: computePointsForPrediction(
-            {
-              round: match.round,
-              homeScore: match.homeScore!,
-              awayScore: match.awayScore!,
-              wentToEt: match.wentToEt,
-              wentToPens: match.wentToPens,
-            },
-            {
-              homeScore: p.homeScore,
-              awayScore: p.awayScore,
-              predictsEt: p.predictsEt,
-              predictsPens: p.predictsPens,
-            }
-          ),
-        },
+    [...idsByPoints.entries()].map(([pts, ids]) =>
+      prisma.matchPrediction.updateMany({
+        where: { id: { in: ids } },
+        data: { pointsAwarded: pts },
       })
     )
   );
@@ -148,22 +159,25 @@ export async function recalcGroupStandings(
   const preds = await prisma.groupStandingPrediction.findMany({ where: { groupId } });
   if (preds.length === 0) return;
 
-  const byUser = new Map<number, Record<number, number>>();
+  // Bucket prediction ids by correct (3 pts) vs wrong (0) and issue exactly
+  // two updateMany statements — not one per (user, position) — to stay well
+  // under the interactive-transaction timeout (see recalcPointsForMatch).
+  const correctIds: number[] = [];
+  const wrongIds: number[] = [];
   for (const p of preds) {
-    if (!byUser.has(p.userId)) byUser.set(p.userId, {});
-    byUser.get(p.userId)![p.position] = p.teamId;
+    (p.teamId === actualByPosition[p.position] ? correctIds : wrongIds).push(p.id);
   }
 
-  const updates = [...byUser.entries()].flatMap(([userId, predicted]) =>
-    [1, 2, 3, 4].map((pos) =>
-      prisma.groupStandingPrediction.updateMany({
-        where: { userId, groupId, position: pos },
-        data: { pointsAwarded: predicted[pos] === actualByPosition[pos] ? 3 : 0 },
-      })
-    )
-  );
-
-  await prisma.$transaction(updates);
+  await prisma.$transaction([
+    prisma.groupStandingPrediction.updateMany({
+      where: { id: { in: correctIds } },
+      data: { pointsAwarded: 3 },
+    }),
+    prisma.groupStandingPrediction.updateMany({
+      where: { id: { in: wrongIds } },
+      data: { pointsAwarded: 0 },
+    }),
+  ]);
 }
 
 // Re-evaluate dark-horse buckets every time a KO match flips to FINISHED.
@@ -214,22 +228,33 @@ export async function recalcDarkHorse(prisma: PrismaClient): Promise<void> {
   const bonusPreds = await prisma.bonusPrediction.findMany();
   if (bonusPreds.length === 0) return;
 
-  await prisma.$transaction(
-    bonusPreds.map((b) => {
-      const teamId = b.darkHorseTeamId;
-      let round: DarkHorseRound = "GROUP_EXIT";
-      if (playedInRound.R32.has(teamId)) round = "R32";
-      if (advancedFromRound.R32.has(teamId)) round = "R16";
-      if (advancedFromRound.R16.has(teamId)) round = "QF";
-      if (advancedFromRound.QF.has(teamId)) round = "SF";
-      if (advancedFromRound.SF.has(teamId)) round = "FINAL";
-      if (championId === teamId) round = "WINNER";
+  // Bucket bonus ids by dark-horse point value and issue one updateMany per
+  // distinct value (the round→points table has a handful of levels), rather
+  // than one update per user — see recalcPointsForMatch for the why.
+  const idsByPts = new Map<number, number[]>();
+  for (const b of bonusPreds) {
+    const teamId = b.darkHorseTeamId;
+    let round: DarkHorseRound = "GROUP_EXIT";
+    if (playedInRound.R32.has(teamId)) round = "R32";
+    if (advancedFromRound.R32.has(teamId)) round = "R16";
+    if (advancedFromRound.R16.has(teamId)) round = "QF";
+    if (advancedFromRound.QF.has(teamId)) round = "SF";
+    if (advancedFromRound.SF.has(teamId)) round = "FINAL";
+    if (championId === teamId) round = "WINNER";
 
-      return prisma.bonusPrediction.update({
-        where: { id: b.id },
-        data: { darkHorsePts: darkHorsePoints(round) },
-      });
-    })
+    const pts = darkHorsePoints(round);
+    const bucket = idsByPts.get(pts);
+    if (bucket) bucket.push(b.id);
+    else idsByPts.set(pts, [b.id]);
+  }
+
+  await prisma.$transaction(
+    [...idsByPts.entries()].map(([pts, ids]) =>
+      prisma.bonusPrediction.updateMany({
+        where: { id: { in: ids } },
+        data: { darkHorsePts: pts },
+      })
+    )
   );
 }
 
@@ -252,17 +277,24 @@ export async function recalcChampionAndRunnerUp(prisma: PrismaClient): Promise<v
   const bonusPreds = await prisma.bonusPrediction.findMany();
   if (bonusPreds.length === 0) return;
 
-  await prisma.$transaction(
-    bonusPreds.map((b) =>
-      prisma.bonusPrediction.update({
-        where: { id: b.id },
-        data: {
-          championPts: b.championTeamId === winnerId ? 20 : 0,
-          runnerUpPts: b.runnerUpTeamId === runnerUpId ? 10 : 0,
-        },
-      })
-    )
-  );
+  // Champion (20/0) and runner-up (10/0) are independent, so bucket ids for
+  // each field and issue four updateMany statements total — not one update per
+  // user (see recalcPointsForMatch for the timeout rationale).
+  const championRight: number[] = [];
+  const championWrong: number[] = [];
+  const runnerRight: number[] = [];
+  const runnerWrong: number[] = [];
+  for (const b of bonusPreds) {
+    (b.championTeamId === winnerId ? championRight : championWrong).push(b.id);
+    (b.runnerUpTeamId === runnerUpId ? runnerRight : runnerWrong).push(b.id);
+  }
+
+  await prisma.$transaction([
+    prisma.bonusPrediction.updateMany({ where: { id: { in: championRight } }, data: { championPts: 20 } }),
+    prisma.bonusPrediction.updateMany({ where: { id: { in: championWrong } }, data: { championPts: 0 } }),
+    prisma.bonusPrediction.updateMany({ where: { id: { in: runnerRight } }, data: { runnerUpPts: 10 } }),
+    prisma.bonusPrediction.updateMany({ where: { id: { in: runnerWrong } }, data: { runnerUpPts: 0 } }),
+  ]);
 }
 
 // Reverse of calculateAndStorePoints — resets a match to SCHEDULED and clears
