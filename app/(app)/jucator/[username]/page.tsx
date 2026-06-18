@@ -30,6 +30,18 @@ const TIER_BADGE: Record<MatchTier, string> = {
 
 export const dynamic = "force-dynamic";
 
+const TABS: { key: Round; label: string; sub: string }[] = [
+  { key: "GROUP_1", label: "Etapa 1", sub: "Grupe" },
+  { key: "GROUP_2", label: "Etapa 2", sub: "Grupe" },
+  { key: "GROUP_3", label: "Etapa 3", sub: "Grupe" },
+  { key: "R32", label: "Șaisprezecimi", sub: "32 echipe" },
+  { key: "R16", label: "Optimi", sub: "16 echipe" },
+  { key: "QF", label: "Sferturi", sub: "8 echipe" },
+  { key: "SF", label: "Semifinale", sub: "4 echipe" },
+  { key: "THIRD_PLACE", label: "Locul 3", sub: "1 meci" },
+  { key: "FINAL", label: "Finala", sub: "1 meci" },
+];
+
 const ROUND_LABELS: Record<Round, string> = {
   GROUP_1: "Etapa 1",
   GROUP_2: "Etapa 2",
@@ -48,15 +60,27 @@ const KICKOFF_FMT = new Intl.DateTimeFormat("ro-RO", {
   month: "short",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: "Europe/Bucharest",
 });
+
+function isRound(value: string | undefined): value is Round {
+  return !!value && TABS.some((t) => t.key === value);
+}
 
 export default async function JucatorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ md?: string; tab?: string }>;
 }) {
   const { username: rawUsername } = await params;
   const username = decodeURIComponent(rawUsername);
+
+  const sp = await searchParams;
+  const matchday: Round = isRound(sp.md) ? sp.md : "GROUP_2";
+  const activeTabDef = TABS.find((t) => t.key === matchday)!;
+  const section = sp.tab ?? "meciuri";
 
   const meId = getSessionUser(await auth())?.id;
 
@@ -69,11 +93,9 @@ export default async function JucatorPage({
   const isMe = meId === user.id;
   const displayName = buildDisplayName(user);
   const now = new Date();
+  const lockCutoff = new Date(now.getTime() + LOCK_OFFSET_MS);
 
   // Tournament lock — controls visibility of bonus + standings.
-  // Considered "started" once either the first kickoff time has passed
-  // OR any group-stage match has been resulted (covers admin-entered or
-  // demo-spoofed results landing before the scheduled kickoff window).
   const tournamentStart = await tournamentLockTime(prisma);
   const anyGroupFinished = await prisma.match.findFirst({
     where: { round: { in: ["GROUP_1", "GROUP_2", "GROUP_3"] }, status: "FINISHED" },
@@ -82,9 +104,7 @@ export default async function JucatorPage({
   const tournamentStarted =
     (tournamentStart !== null && isMatchLocked(tournamentStart, now)) || anyGroupFinished !== null;
 
-  // ── Compute totals from ALL predictions (visible or not) so the header
-  //    reflects the leaderboard exactly; the visibility filter only affects
-  //    which individual predictions get displayed below. ─────────────────
+  // Totals from ALL predictions for the header score.
   const [matchPredsAll, standingsAll, bonusAll] = await Promise.all([
     prisma.matchPrediction.findMany({
       where: { userId: user.id },
@@ -116,23 +136,34 @@ export default async function JucatorPage({
     },
   ]);
 
-  // ── Visible match predictions: kickoff has passed OR the match is
-  //    already FINISHED (the admin may have entered a result before the
-  //    scheduled kickoff e.g. for demo data; once a result exists the
-  //    prediction can no longer change so it's safe to show). ─────────
-  const lockCutoff = new Date(now.getTime() + LOCK_OFFSET_MS);
-  const visibleMatchPreds = await prisma.matchPrediction.findMany({
-    where: {
-      userId: user.id,
-      match: { OR: [{ kickoffTime: { lte: lockCutoff } }, { status: "FINISHED" }] },
-    },
-    include: {
-      match: { include: { homeTeam: true, awayTeam: true, group: true } },
-    },
-    orderBy: { match: { kickoffTime: "desc" } },
+  // All matches for the selected round, ordered by kickoff time.
+  const matches = await prisma.match.findMany({
+    where: { round: matchday },
+    include: { homeTeam: true, awayTeam: true, group: true },
+    orderBy: { kickoffTime: "asc" },
   });
 
-  // ── Visible bonus + standings (only if tournament started) ─────────────
+  // User's predictions for the selected round (only locked/finished matches are visible).
+  const predRows = await prisma.matchPrediction.findMany({
+    where: {
+      userId: user.id,
+      match: {
+        round: matchday,
+        OR: [{ kickoffTime: { lte: lockCutoff } }, { status: "FINISHED" }],
+      },
+    },
+    select: {
+      matchId: true,
+      homeScore: true,
+      awayScore: true,
+      predictsEt: true,
+      predictsPens: true,
+      pointsAwarded: true,
+    },
+  });
+  const predByMatchId = new Map(predRows.map((p) => [p.matchId, p]));
+
+  // Bonus + standings (only if tournament started).
   const bonus = tournamentStarted
     ? await prisma.bonusPrediction.findUnique({
         where: { userId: user.id },
@@ -156,10 +187,8 @@ export default async function JucatorPage({
     return acc;
   }, new Map());
 
-  const hasAnyVisible = visibleMatchPreds.length > 0 || bonus !== null || standings.length > 0;
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-3">
         <Link
           href="/clasament"
@@ -200,150 +229,195 @@ export default async function JucatorPage({
         </div>
       </header>
 
-      {!hasAnyVisible && (
-        <NoVisibility tournamentStarted={tournamentStarted} tournamentStart={tournamentStart} />
+      {/* Section switcher */}
+      <div className="flex gap-2">
+        {(["meciuri", "grupe", "bonus"] as const).map((s) => (
+          <Link
+            key={s}
+            href={`?md=${matchday}&tab=${s}`}
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
+              section === s
+                ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-200"
+                : "border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+            }`}
+          >
+            {s === "meciuri" ? "Meciuri" : s === "grupe" ? "Clasament grupe" : "Bonus"}
+          </Link>
+        ))}
+      </div>
+
+      {section === "meciuri" && (
+        <>
+          {/* Round tab nav */}
+          <div className="relative -mx-4">
+            <nav
+              aria-label="Etapă"
+              className="flex gap-2 overflow-x-auto px-4 pb-2 pr-12 [scroll-padding-inline:1rem] [scroll-snap-type:x_proximity] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {TABS.map((t) => {
+                const active = t.key === matchday;
+                return (
+                  <Link
+                    key={t.key}
+                    href={`?md=${t.key}&tab=meciuri`}
+                    prefetch={false}
+                    className={`group flex shrink-0 flex-col rounded-xl border px-3 py-1.5 text-left transition [scroll-snap-align:start] ${
+                      active
+                        ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-200 shadow-[0_0_0_1px_rgba(16,185,129,0.4)]"
+                        : "border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    }`}
+                  >
+                    <span className="text-[10px] uppercase tracking-[0.18em] opacity-70">{t.sub}</span>
+                    <span className="font-display text-sm font-semibold uppercase tracking-wide">{t.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-slate-950 via-slate-950/80 to-transparent"
+            />
+          </div>
+
+          {matches.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 p-8 text-center text-sm text-slate-500">
+              Nicio etapă de afișat (încă).
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {matches.map((m) => {
+                const isVisible =
+                  m.kickoffTime <= lockCutoff || m.status === "FINISHED" || m.status === "LIVE";
+                const pred = isVisible ? (predByMatchId.get(m.id) ?? null) : null;
+                const isPlaceholder = !m.homeTeam || !m.awayTeam;
+
+                return (
+                  <MatchRow
+                    key={m.id}
+                    match={m}
+                    prediction={pred}
+                    isVisible={isVisible}
+                    isPlaceholder={isPlaceholder}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
-      {visibleMatchPreds.length > 0 && (
+      {section === "grupe" && (
         <section className="space-y-3">
-          <SectionHeading
-            label="Predicții deblocate"
-            accent="emerald"
-            sub={`${visibleMatchPreds.length} meciuri începute`}
-          />
-          <ul className="space-y-2">
-            {visibleMatchPreds.map((p) => (
-              <li key={p.id}>
-                <MatchPredictionRow prediction={p} />
-              </li>
-            ))}
-          </ul>
+          {!tournamentStarted ? (
+            <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-8 text-center">
+              <p className="font-display text-lg font-extrabold uppercase tracking-tight text-slate-200">
+                Clasamentele sunt încă private
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                Devin publice când începe turneul.
+              </p>
+            </div>
+          ) : standingsByGroup.size === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-800 bg-slate-900/30 p-4 text-sm text-slate-500">
+              Niciun pronostic completat.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[...standingsByGroup.entries()].map(([groupName, rows]) => (
+                <article
+                  key={groupName}
+                  className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/40"
+                >
+                  <header className="border-b border-slate-800/60 bg-slate-900/40 px-4 py-2">
+                    <p className="font-display text-sm font-bold uppercase tracking-[0.24em] text-sky-200">
+                      Grupa {groupName}
+                    </p>
+                  </header>
+                  <ol className="divide-y divide-slate-800/60">
+                    {rows.map((r) => (
+                      <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-2">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="font-display w-6 shrink-0 text-center text-xs font-bold tabular-nums text-slate-500">
+                            {r.position}
+                          </span>
+                          <FlagImage emoji={r.team.flagEmoji} className="h-5 w-auto shrink-0" />
+                          <span className="truncate text-sm font-medium text-slate-100">
+                            {r.team.name}
+                          </span>
+                        </div>
+                        <PointsBadge pts={r.pointsAwarded} />
+                      </li>
+                    ))}
+                  </ol>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
-      {bonus && (
+      {section === "bonus" && (
         <section className="space-y-3">
-          <SectionHeading label="Bonus" accent="fuchsia" sub="Predicții pre-turneu" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <BonusCard
-              eyebrow="Campion"
-              accent="amber"
-              team={bonus.champion}
-              pts={bonus.championPts}
-            />
-            <BonusCard
-              eyebrow="Finalist"
-              accent="slate"
-              team={bonus.runnerUp}
-              pts={bonus.runnerUpPts}
-            />
-            <BonusCard
-              eyebrow="Golgheter"
-              accent="sky"
-              value={bonus.topScorerName}
-              pts={bonus.topScorerPts}
-            />
-            <BonusCard
-              eyebrow="Surpriza turneului"
-              accent="violet"
-              team={bonus.darkHorse}
-              pts={bonus.darkHorsePts}
-            />
-          </div>
-        </section>
-      )}
-
-      {standings.length > 0 && (
-        <section className="space-y-3">
-          <SectionHeading label="Clasament grupe" accent="sky" sub={`${standingsByGroup.size}/12 grupe`} />
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[...standingsByGroup.entries()].map(([groupName, rows]) => (
-              <article
-                key={groupName}
-                className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/40"
-              >
-                <header className="border-b border-slate-800/60 bg-slate-900/40 px-4 py-2">
-                  <p className="font-display text-sm font-bold uppercase tracking-[0.24em] text-sky-200">
-                    Grupa {groupName}
-                  </p>
-                </header>
-                <ol className="divide-y divide-slate-800/60">
-                  {rows.map((r) => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-2">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="font-display w-6 shrink-0 text-center text-xs font-bold tabular-nums text-slate-500">
-                          {r.position}
-                        </span>
-                        <FlagImage emoji={r.team.flagEmoji} className="h-5 w-auto shrink-0" />
-                        <span className="truncate text-sm font-medium text-slate-100">
-                          {r.team.name}
-                        </span>
-                      </div>
-                      <PointsBadge pts={r.pointsAwarded} />
-                    </li>
-                  ))}
-                </ol>
-              </article>
-            ))}
-          </div>
+          {!tournamentStarted ? (
+            <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-8 text-center">
+              <p className="font-display text-lg font-extrabold uppercase tracking-tight text-slate-200">
+                Bonusul e încă privat
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                Devine public când începe turneul.
+              </p>
+            </div>
+          ) : !bonus ? (
+            <p className="rounded-xl border border-dashed border-slate-800 bg-slate-900/30 p-4 text-sm text-slate-500">
+              Niciun pronostic bonus completat.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <BonusCard eyebrow="Campion" accent="amber" team={bonus.champion} pts={bonus.championPts} />
+              <BonusCard eyebrow="Finalist" accent="slate" team={bonus.runnerUp} pts={bonus.runnerUpPts} />
+              <BonusCard eyebrow="Golgheter" accent="sky" value={bonus.topScorerName} pts={bonus.topScorerPts} />
+              <BonusCard eyebrow="Surpriza turneului" accent="violet" team={bonus.darkHorse} pts={bonus.darkHorsePts} />
+            </div>
+          )}
         </section>
       )}
     </div>
   );
 }
 
-function SectionHeading({
-  label,
-  sub,
-  accent,
+function MatchRow({
+  match: m,
+  prediction: pred,
+  isVisible,
+  isPlaceholder,
 }: {
-  label: string;
-  sub: string;
-  accent: "emerald" | "fuchsia" | "sky";
-}) {
-  const tone =
-    accent === "emerald"
-      ? "text-emerald-300/80"
-      : accent === "fuchsia"
-        ? "text-fuchsia-300/80"
-        : "text-sky-300/80";
-  return (
-    <div className="flex items-baseline justify-between gap-2 px-1">
-      <h2 className={`font-display text-lg font-extrabold uppercase tracking-[0.18em] ${tone}`}>
-        {label}
-      </h2>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500">{sub}</p>
-    </div>
-  );
-}
-
-function MatchPredictionRow({
-  prediction,
-}: {
+  match: {
+    id: number;
+    kickoffTime: Date;
+    round: Round;
+    status: string;
+    homeScore: number | null;
+    awayScore: number | null;
+    wentToEt: boolean | null;
+    wentToPens: boolean | null;
+    slotDescription: string | null;
+    group: { name: string } | null;
+    homeTeam: { name: string; flagEmoji: string } | null;
+    awayTeam: { name: string; flagEmoji: string } | null;
+  };
   prediction: {
     homeScore: number;
     awayScore: number;
     predictsEt: boolean | null;
     predictsPens: boolean | null;
     pointsAwarded: number | null;
-    match: {
-      kickoffTime: Date;
-      round: Round;
-      status: "SCHEDULED" | "LIVE" | "FINISHED";
-      homeScore: number | null;
-      awayScore: number | null;
-      wentToEt: boolean | null;
-      wentToPens: boolean | null;
-      group: { name: string } | null;
-      homeTeam: { name: string; flagEmoji: string } | null;
-      awayTeam: { name: string; flagEmoji: string } | null;
-    };
-  };
+  } | null;
+  isVisible: boolean;
+  isPlaceholder: boolean;
 }) {
-  const m = prediction.match;
   const finished = m.status === "FINISHED" && m.homeScore !== null && m.awayScore !== null;
-  const meta = m.group?.name ? `Grupa ${m.group.name}` : ROUND_LABELS[m.round];
-  const tier = matchPredictionTier(prediction.pointsAwarded, m.round);
+  const meta = m.group?.name ? `Grupa ${m.group.name}` : (m.slotDescription ?? ROUND_LABELS[m.round]);
+  const tier = pred ? matchPredictionTier(pred.pointsAwarded, m.round) : "none";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/40">
@@ -353,44 +427,85 @@ function MatchPredictionRow({
         </span>
         <span className="text-slate-700">·</span>
         <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">{meta}</span>
-        <div className="ml-auto">
-          <TierBadge tier={tier} pts={prediction.pointsAwarded} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3 sm:gap-4">
-        <TeamLabel team={m.homeTeam} align="right" />
-        <div className="flex flex-col items-center gap-1">
-          <div className={`flex h-10 w-16 items-center justify-center gap-1 rounded-lg border ${TIER_TILE[tier]}`}>
-            <span className="font-display text-base font-extrabold leading-none tabular-nums">{prediction.homeScore}</span>
-            <span className="font-display text-xs font-bold leading-none opacity-60">·</span>
-            <span className="font-display text-base font-extrabold leading-none tabular-nums">{prediction.awayScore}</span>
+        {pred && (
+          <div className="ml-auto">
+            <TierBadge tier={tier} pts={pred.pointsAwarded} />
           </div>
-          <span className={`text-[9px] font-semibold uppercase tracking-[0.22em] ${TIER_EYEBROW[tier]}`}>
-            Predicție
-          </span>
-        </div>
-        <TeamLabel team={m.awayTeam} align="left" />
+        )}
       </div>
 
-      {(prediction.predictsEt || prediction.predictsPens) && !finished && (
-        <p className="border-t border-slate-800/60 bg-slate-900/30 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-300/90">
-          A pariat pe {prediction.predictsPens ? "penalty-uri" : "prelungiri"}
-        </p>
-      )}
+      {isPlaceholder ? (
+        <div className="px-4 py-4 text-center text-sm italic text-slate-500">
+          {m.slotDescription ?? "Echipe necunoscute"}
+        </div>
+      ) : !isVisible ? (
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3 sm:gap-4">
+          <TeamLabel team={m.homeTeam} align="right" />
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex h-10 w-16 items-center justify-center gap-1 rounded-lg border border-dashed border-slate-700/60">
+              <span className="font-display text-base font-extrabold leading-none tabular-nums text-slate-600">?</span>
+              <span className="font-display text-xs font-bold leading-none text-slate-700">·</span>
+              <span className="font-display text-base font-extrabold leading-none tabular-nums text-slate-600">?</span>
+            </div>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-600">
+              Privat
+            </span>
+          </div>
+          <TeamLabel team={m.awayTeam} align="left" />
+        </div>
+      ) : pred ? (
+        <>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3 sm:gap-4">
+            <TeamLabel team={m.homeTeam} align="right" />
+            <div className="flex flex-col items-center gap-1">
+              <div className={`flex h-10 w-16 items-center justify-center gap-1 rounded-lg border ${TIER_TILE[tier]}`}>
+                <span className="font-display text-base font-extrabold leading-none tabular-nums">{pred.homeScore}</span>
+                <span className="font-display text-xs font-bold leading-none opacity-60">·</span>
+                <span className="font-display text-base font-extrabold leading-none tabular-nums">{pred.awayScore}</span>
+              </div>
+              <span className={`text-[9px] font-semibold uppercase tracking-[0.22em] ${TIER_EYEBROW[tier]}`}>
+                Predicție
+              </span>
+            </div>
+            <TeamLabel team={m.awayTeam} align="left" />
+          </div>
 
-      {finished && (
-        <div className="flex items-center justify-between gap-3 border-t border-slate-800/60 bg-slate-900/30 px-4 py-2 text-xs">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Rezultat
-          </span>
-          <span className="font-display text-base font-bold tabular-nums text-slate-100">
-            {m.homeScore} – {m.awayScore}
-            {m.wentToPens && <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">(pen)</span>}
-            {m.wentToEt && !m.wentToPens && (
-              <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">(prel)</span>
-            )}
-          </span>
+          {(pred.predictsEt || pred.predictsPens) && !finished && (
+            <p className="border-t border-slate-800/60 bg-slate-900/30 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-300/90">
+              A pariat pe {pred.predictsPens ? "penalty-uri" : "prelungiri"}
+            </p>
+          )}
+
+          {finished && (
+            <div className="flex items-center justify-between gap-3 border-t border-slate-800/60 bg-slate-900/30 px-4 py-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Rezultat
+              </span>
+              <span className="font-display text-base font-bold tabular-nums text-slate-100">
+                {m.homeScore} – {m.awayScore}
+                {m.wentToPens && <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">(pen)</span>}
+                {m.wentToEt && !m.wentToPens && (
+                  <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">(prel)</span>
+                )}
+              </span>
+            </div>
+          )}
+        </>
+      ) : (
+        /* Locked match with no prediction made */
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3 sm:gap-4">
+          <TeamLabel team={m.homeTeam} align="right" />
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex h-10 w-16 items-center justify-center gap-1 rounded-lg border border-dashed border-slate-700/60">
+              <span className="font-display text-base font-extrabold leading-none tabular-nums text-slate-600">—</span>
+              <span className="font-display text-xs font-bold leading-none text-slate-700">·</span>
+              <span className="font-display text-base font-extrabold leading-none tabular-nums text-slate-600">—</span>
+            </div>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-600">
+              Fără pronostic
+            </span>
+          </div>
+          <TeamLabel team={m.awayTeam} align="left" />
         </div>
       )}
     </div>
@@ -398,8 +513,6 @@ function MatchPredictionRow({
 }
 
 function TierBadge({ tier, pts }: { tier: MatchTier; pts: number | null }) {
-  // Compact form: "+X · Label" so the badge encodes both the precise score
-  // and the qualitative tier at a glance.
   const label = MATCH_TIER_LABEL[tier];
   const ptsText = pts === null ? "—" : pts === 0 ? "0" : `+${pts}`;
   return (
@@ -444,9 +557,6 @@ function TeamLabel({
 }
 
 function PointsBadge({ pts }: { pts: number | null }) {
-  // Binary hit/miss/pending badge for bonus + standings rows. For per-match
-  // predictions use <TierBadge> instead — it grades the gradient between
-  // "winner only" and "perfect".
   if (pts === null) {
     return (
       <span className="rounded-full border border-slate-700/60 bg-slate-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -477,8 +587,8 @@ function BonusCard({
 }: {
   eyebrow: string;
   accent: "amber" | "slate" | "sky" | "violet";
-  team?: { name: string; flagEmoji: string };
-  value?: string;
+  team?: { name: string; flagEmoji: string } | null;
+  value?: string | null;
   pts: number | null;
 }) {
   const ringMap: Record<typeof accent, string> = {
@@ -511,31 +621,5 @@ function BonusCard({
         </p>
       </div>
     </article>
-  );
-}
-
-function NoVisibility({
-  tournamentStarted,
-  tournamentStart,
-}: {
-  tournamentStarted: boolean;
-  tournamentStart: Date | null;
-}) {
-  const startStr = tournamentStart
-    ? KICKOFF_FMT.format(tournamentStart)
-    : null;
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-8 text-center">
-      <p className="font-display text-xl font-extrabold uppercase tracking-tight text-slate-200">
-        Predicțiile sunt încă private
-      </p>
-      <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
-        {tournamentStarted
-          ? "Niciun meci nu a început încă, deci nu există predicții vizibile pentru acest jucător. Vor apărea pe măsură ce încep meciurile."
-          : startStr
-            ? `Bonusul și pronosticurile pe clasamentul grupelor devin publice când începe turneul (${startStr}). Predicțiile pe meciuri devin publice individual, după ce fluierul de start al fiecărui meci sună.`
-            : "Predicțiile devin publice doar după ce sunt blocate — bonusul și clasamentele când începe turneul, predicțiile pe meciuri când începe fiecare meci."}
-      </p>
-    </div>
   );
 }
