@@ -33,7 +33,7 @@ export default async function PronosticuriPage({
   if (!userId) redirect("/login");
 
   const params = await searchParams;
-  const matchday: Round = isRound(params.md) ? params.md : "GROUP_1";
+  const matchday: Round = isRound(params.md) ? params.md : "GROUP_2";
   const activeTab = TABS.find((t) => t.key === matchday)!;
 
   const matches = await prisma.match.findMany({
