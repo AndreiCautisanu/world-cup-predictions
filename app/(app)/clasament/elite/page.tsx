@@ -12,6 +12,7 @@ const ELITE_NAMES = [
   "Razvan Raul",
   "Alexandru AD",
   "Octavian Moose",
+  "Octavian Moise",
   "Sebastian Cirstoninovic",
   "Lorin-Iulian Adam",
   "Stefan Doncu",
