@@ -37,15 +37,34 @@ jobs:
             exit 1
           fi
           echo "POST $APP_URL/api/admin/sync-results"
-          response=$(curl -sS -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            "$APP_URL/api/admin/sync-results")
-          body=$(echo "$response" | head -n -1)
-          code=$(echo "$response" | tail -n 1)
-          echo "HTTP $code"
-          echo "$body"
+          # The Railway origin occasionally returns a transient proxy-level 502
+          # (instance restart / cold path) during a match window. A single curl
+          # would fail the whole run — and miss that window's sync — on a blip
+          # that clears in seconds. Retry 5xx/connection failures with backoff
+          # so the sync still lands; fail only if it's still failing after that.
+          code=""
+          body=""
+          for attempt in 1 2 3 4 5; do
+            response=$(curl -sS -m 30 -w "\n%{http_code}" -X POST \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$APP_URL/api/admin/sync-results") || response=$'\n000'
+            body=$(echo "$response" | head -n -1)
+            code=$(echo "$response" | tail -n 1)
+            echo "attempt $attempt: HTTP $code"
+            echo "$body"
+            # 000 = curl couldn't connect; 5xx = origin/proxy error. Both transient.
+            case "$code" in
+              000|5*)
+                if [ "$attempt" -lt 5 ]; then
+                  sleep $((attempt * attempt * 2))  # 2s, 8s, 18s, 32s
+                  continue
+                fi
+                ;;
+            esac
+            break
+          done
           if [ "$code" != "200" ]; then
-            echo "::error::Unexpected HTTP $code"
+            echo "::error::Unexpected HTTP $code after retries"
             exit 1
           fi
           if echo "$body" | grep -q '"ok":false'; then

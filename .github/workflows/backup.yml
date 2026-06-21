@@ -32,17 +32,33 @@ jobs:
             exit 1
           fi
           echo "POST $APP_URL/api/admin/snapshot"
-          response=$(curl -sS -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            "$APP_URL/api/admin/snapshot")
-          body=$(echo "$response" | head -n -1)
-          code=$(echo "$response" | tail -n 1)
-          echo "HTTP $code"
-          echo "$body"
+          # Retry transient origin blips (proxy-level 5xx / connection refused
+          # during a Railway instance restart) with backoff so a momentary
+          # hiccup doesn't fail an otherwise-healthy backup run.
+          code=""
+          body=""
+          for attempt in 1 2 3 4 5; do
+            response=$(curl -sS -m 30 -w "\n%{http_code}" -X POST \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$APP_URL/api/admin/snapshot") || response=$'\n000'
+            body=$(echo "$response" | head -n -1)
+            code=$(echo "$response" | tail -n 1)
+            echo "attempt $attempt: HTTP $code"
+            echo "$body"
+            case "$code" in
+              000|5*)
+                if [ "$attempt" -lt 5 ]; then
+                  sleep $((attempt * attempt * 2))  # 2s, 8s, 18s, 32s
+                  continue
+                fi
+                ;;
+            esac
+            break
+          done
           # The endpoint returns 200 even on a push failure (so the cron
           # doesn't spam-retry); surface ok:false as a workflow failure.
           if [ "$code" != "200" ]; then
-            echo "::error::Unexpected HTTP $code"
+            echo "::error::Unexpected HTTP $code after retries"
             exit 1
           fi
           if echo "$body" | grep -q '"ok":false'; then
