@@ -1,6 +1,6 @@
-name: Sync match results (backup)
+name: Sync match results (fallback)
 
-# BACKUP ONLY — the primary sync is handled by an in-process scheduler
+# FALLBACK ONLY — the primary sync is handled by an in-process scheduler
 # (instrumentation.ts + lib/sync-scheduler.ts) that polls every 2 minutes
 # during active match windows directly from the Railway server process.
 #
