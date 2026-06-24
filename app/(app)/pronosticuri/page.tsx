@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { isMatchLocked } from "@/lib/locking";
+import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
 import { MatchCard } from "@/components/MatchCard";
 import { MatchdaySaveAll } from "@/components/MatchdaySaveAll";
 
@@ -33,7 +34,7 @@ export default async function PronosticuriPage({
   if (!userId) redirect("/login");
 
   const params = await searchParams;
-  const matchday: Round = isRound(params.md) ? params.md : "GROUP_2";
+  const matchday: Round = isRound(params.md) ? params.md : DEFAULT_MATCH_ROUND;
   const activeTab = TABS.find((t) => t.key === matchday)!;
 
   const matches = await prisma.match.findMany({

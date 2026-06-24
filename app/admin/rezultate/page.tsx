@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Round } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
 import { AdminResultRow } from "./AdminResultRow";
 
 const TABS: { key: Round; label: string; sub: string }[] = [
@@ -25,7 +26,7 @@ export default async function AdminRezultate({
   searchParams: Promise<{ round?: string }>;
 }) {
   const params = await searchParams;
-  const round: Round = isRound(params.round) ? params.round : "GROUP_1";
+  const round: Round = isRound(params.round) ? params.round : DEFAULT_MATCH_ROUND;
   const activeTab = TABS.find((t) => t.key === round)!;
 
   const matches = await prisma.match.findMany({

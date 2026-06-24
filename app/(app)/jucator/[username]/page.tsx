@@ -8,6 +8,7 @@ import { FlagImage } from "@/components/FlagImage";
 import { isMatchLocked, LOCK_OFFSET_MS, tournamentLockTime } from "@/lib/locking";
 import { buildDisplayName, summarizeLeaderboardRows } from "@/lib/leaderboard";
 import { matchPredictionTier, MATCH_TIER_LABEL, type MatchTier } from "@/lib/match-tier";
+import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
 import { TIER_TILE } from "@/lib/tier-styles";
 
 const TIER_EYEBROW: Record<MatchTier, string> = {
@@ -78,8 +79,7 @@ export default async function JucatorPage({
   const username = decodeURIComponent(rawUsername);
 
   const sp = await searchParams;
-  const matchday: Round = isRound(sp.md) ? sp.md : "GROUP_2";
-  const activeTabDef = TABS.find((t) => t.key === matchday)!;
+  const matchday: Round = isRound(sp.md) ? sp.md : DEFAULT_MATCH_ROUND;
   const section = sp.tab ?? "meciuri";
 
   const meId = getSessionUser(await auth())?.id;

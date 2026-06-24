@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Round } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { matchPredictionTier, MATCH_TIER_LABEL, type MatchTier } from "@/lib/match-tier";
+import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
 import { FlagImage } from "@/components/FlagImage";
 
 export const dynamic = "force-dynamic";
@@ -72,8 +73,7 @@ export default async function AdminUserDetail({
   if (!Number.isInteger(userId) || userId < 1) notFound();
 
   const sp = await searchParams;
-  const matchday: Round = isRound(sp.md) ? sp.md : "GROUP_2";
-  const activeTab = TABS.find((t) => t.key === matchday)!;
+  const matchday: Round = isRound(sp.md) ? sp.md : DEFAULT_MATCH_ROUND;
   const section = sp.tab ?? "meciuri";
 
   const [user, matches] = await Promise.all([

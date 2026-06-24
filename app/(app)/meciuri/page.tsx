@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Round } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isMatchLocked } from "@/lib/locking";
+import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
 import { FlagImage } from "@/components/FlagImage";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,7 @@ export default async function MeciuriPage({
   searchParams: Promise<{ md?: string }>;
 }) {
   const params = await searchParams;
-  const round: Round = isRound(params.md) ? params.md : "GROUP_1";
+  const round: Round = isRound(params.md) ? params.md : DEFAULT_MATCH_ROUND;
   const activeTab = TABS.find((t) => t.key === round)!;
 
   const matches = await prisma.match.findMany({
