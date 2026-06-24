@@ -24,6 +24,15 @@ export type Snapshot = {
   adminAuditLog: unknown[];
 };
 
+function excludeBackupPushAuditRows(rows: unknown[]): unknown[] {
+  return rows.filter((row) => {
+    if (!row || typeof row !== "object" || !("action" in row)) {
+      return true;
+    }
+    return row.action !== "snapshot.push";
+  });
+}
+
 export async function buildSnapshot(prisma: PrismaClient): Promise<Snapshot> {
   const [users, matchPredictions, groupStandingPredictions, bonusPrediction, inviteCodes, adminAuditLog] =
     await Promise.all([
@@ -43,8 +52,12 @@ export async function buildSnapshot(prisma: PrismaClient): Promise<Snapshot> {
     inviteCodes,
     adminAuditLog,
   };
+  const hashData = {
+    ...data,
+    adminAuditLog: excludeBackupPushAuditRows(adminAuditLog),
+  };
   const dataHash = createHash("sha256")
-    .update(JSON.stringify(data))
+    .update(JSON.stringify(hashData))
     .digest("hex");
 
   return {
