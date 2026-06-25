@@ -22,17 +22,19 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 type Team = { id: number; name: string; flagEmoji: string };
+type StandingPosition = 1 | 2 | 3 | 4;
 
 type Props = {
   groupId: number;
   groupName: string;
   teams: Team[];
-  initial: Record<1 | 2 | 3 | 4, number>;
+  initial: Record<StandingPosition, number>;
+  pointsByPosition?: Partial<Record<StandingPosition, number | null>>;
   locked: boolean;
 };
 
 const POSITION_META: Record<
-  1 | 2 | 3 | 4,
+  StandingPosition,
   { tag: string; tone: string }
 > = {
   1: { tag: "Câștigătoare", tone: "text-emerald-300" },
@@ -50,6 +52,7 @@ export function GroupStandingsForm({
   groupName,
   teams,
   initial,
+  pointsByPosition,
   locked,
 }: Props) {
   const initialOrder: number[] = [initial[1], initial[2], initial[3], initial[4]];
@@ -189,7 +192,7 @@ export function GroupStandingsForm({
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
           <ol className="divide-y divide-slate-800/60">
             {order.map((teamId, idx) => {
-              const position = (idx + 1) as 1 | 2 | 3 | 4;
+              const position = (idx + 1) as StandingPosition;
               const team = teamById.get(teamId);
               if (!team) return null;
               return (
@@ -198,6 +201,7 @@ export function GroupStandingsForm({
                   id={teamId}
                   position={position}
                   team={team}
+                  pointsAwarded={pointsByPosition?.[position]}
                   locked={locked}
                 />
               );
@@ -247,11 +251,13 @@ function SortableRow({
   id,
   position,
   team,
+  pointsAwarded,
   locked,
 }: {
   id: number;
-  position: 1 | 2 | 3 | 4;
+  position: StandingPosition;
   team: Team;
+  pointsAwarded?: number | null;
   locked: boolean;
 }) {
   const {
@@ -305,6 +311,8 @@ function SortableRow({
         {team.name}
       </span>
 
+      {pointsAwarded !== undefined && <PointsBadge pts={pointsAwarded} />}
+
       {!locked && (
         <button
           ref={setActivatorNodeRef}
@@ -318,6 +326,28 @@ function SortableRow({
         </button>
       )}
     </li>
+  );
+}
+
+function PointsBadge({ pts }: { pts: number | null }) {
+  if (pts === null) {
+    return (
+      <span className="shrink-0 rounded-full border border-slate-700/60 bg-slate-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        —
+      </span>
+    );
+  }
+  if (pts === 0) {
+    return (
+      <span className="shrink-0 rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-200">
+        Ratat
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+      +{pts} pct
+    </span>
   );
 }
 

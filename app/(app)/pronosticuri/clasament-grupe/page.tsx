@@ -77,15 +77,19 @@ export default async function ClasamentGrupePage() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {groups.map((g) => {
+          const groupPredictions = predictions.filter((pr) => pr.groupId === g.id);
           const initial = {
             1: g.teams[0]?.id ?? 0,
             2: g.teams[1]?.id ?? 0,
             3: g.teams[2]?.id ?? 0,
             4: g.teams[3]?.id ?? 0,
           } as Record<1 | 2 | 3 | 4, number>;
-          for (const p of predictions.filter((pr) => pr.groupId === g.id)) {
+          const hasScoredRows = groupPredictions.some((p) => p.pointsAwarded !== null);
+          const pointsByPosition: Partial<Record<1 | 2 | 3 | 4, number | null>> = {};
+          for (const p of groupPredictions) {
             if (p.position >= 1 && p.position <= 4) {
               initial[p.position as 1 | 2 | 3 | 4] = p.teamId;
+              pointsByPosition[p.position as 1 | 2 | 3 | 4] = p.pointsAwarded;
             }
           }
           return (
@@ -99,6 +103,7 @@ export default async function ClasamentGrupePage() {
                 flagEmoji: t.flagEmoji,
               }))}
               initial={initial}
+              pointsByPosition={hasScoredRows ? pointsByPosition : undefined}
               locked={locked}
             />
           );

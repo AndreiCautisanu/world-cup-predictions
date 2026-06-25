@@ -55,6 +55,20 @@ describe("GroupStandingsForm", () => {
     expect(screen.getByText(/ultima/i)).toBeInTheDocument();
   });
 
+  it("shows awarded points for scored group standing predictions", () => {
+    render(
+      <GroupStandingsForm
+        {...baseProps}
+        locked={true}
+        pointsByPosition={{ 1: 3, 2: 0, 3: null, 4: 3 }}
+      />
+    );
+
+    expect(screen.getAllByText("+3 pct")).toHaveLength(2);
+    expect(screen.getByText("Ratat")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
   it("allows saving the default pot order (button enabled, labelled Salvează)", () => {
     // The default ordering IS a valid prediction — users shouldn't have to
     // drag before they can save it. See commit 97d7f01.
