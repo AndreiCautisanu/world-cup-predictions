@@ -46,7 +46,16 @@ const KO_ROUND_FROM_FD: Partial<Record<FdStage, Round>> = {
 
 // Manual fallback: externalId → [home fifaCode, away fifaCode]. Filled in from
 // the official bracket when football-data lags. Left empty when FD is current.
-const MANUAL_MATCHUPS: { externalId: string; home: string; away: string }[] = [];
+// R32 matchups from the official app (28 Jun – 1 Jul 2026), matched to slots by
+// kickoff time; home = left team as shown.
+const MANUAL_MATCHUPS: { externalId: string; home: string; away: string }[] = [
+  { externalId: "537417", home: "RSA", away: "CAN" }, // Africa de Sud – Canada
+  { externalId: "537423", home: "BRA", away: "JPN" }, // Brazilia – Japonia
+  { externalId: "537415", home: "GER", away: "PAR" }, // Germania – Paraguay
+  { externalId: "537418", home: "NED", away: "MAR" }, // Olanda – Maroc
+  { externalId: "537424", home: "CIV", away: "NOR" }, // Coasta de Fildeș – Norvegia
+  { externalId: "537416", home: "FRA", away: "SWE" }, // Franța – Suedia
+];
 
 const KICKOFF_FMT = new Intl.DateTimeFormat("ro-RO", {
   weekday: "short",
@@ -85,26 +94,23 @@ async function fill() {
     (await prisma.team.findMany()).map((t) => [t.fifaCode, t.id])
   );
 
-  // Set a slot's teams by fifaCode; returns true if it wrote, false if it
-  // couldn't resolve / no change / slot missing. `force` lets FD overwrite an
-  // earlier guess; manual entries pass force=false so they never clobber FD.
+  // Set a slot's teams by fifaCode — but only when the slot is still TBD.
+  // Reassigning teams (or flipping home/away) once a slot has teams would
+  // corrupt any predictions already made against it, so a populated slot is
+  // left untouched no matter the source.
   async function setSlotTeams(
     externalId: string,
     homeTla: string | null,
     awayTla: string | null,
-    utcDate: string | null,
-    force: boolean
+    utcDate: string | null
   ): Promise<"filled" | "tbd" | "missing" | "noop"> {
     const match = await prisma.match.findUnique({ where: { externalId } });
     if (!match) return "missing";
+    if (match.homeTeamId !== null && match.awayTeamId !== null) return "noop";
 
     const homeId = homeTla ? teamByTla.get(homeTla) ?? null : null;
     const awayId = awayTla ? teamByTla.get(awayTla) ?? null : null;
     if (homeId === null || awayId === null) return "tbd";
-
-    const teamsKnown = match.homeTeamId !== null && match.awayTeamId !== null;
-    if (!force && teamsKnown) return "noop";
-    if (match.homeTeamId === homeId && match.awayTeamId === awayId) return "noop";
 
     await prisma.match.update({
       where: { id: match.id },
@@ -124,20 +130,14 @@ async function fill() {
   // 1. football-data (authoritative once published).
   for (const fd of fdMatches) {
     if (!KO_ROUND_FROM_FD[fd.stage]) continue;
-    const r = await setSlotTeams(
-      String(fd.id),
-      fd.homeTeam.tla,
-      fd.awayTeam.tla,
-      fd.utcDate,
-      true
-    );
+    const r = await setSlotTeams(String(fd.id), fd.homeTeam.tla, fd.awayTeam.tla, fd.utcDate);
     if (r === "filled") filled++;
     else if (r === "tbd") stillTbd++;
   }
 
   // 2. Manual fallback for slots FD hasn't published yet.
   for (const m of MANUAL_MATCHUPS) {
-    const r = await setSlotTeams(m.externalId, m.home, m.away, null, false);
+    const r = await setSlotTeams(m.externalId, m.home, m.away, null);
     if (r === "filled") {
       filled++;
       stillTbd = Math.max(0, stillTbd - 1);
