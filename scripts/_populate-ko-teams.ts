@@ -18,8 +18,11 @@ import { PrismaClient, Round } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { fetchWorldCupMatches, type FdStage } from "../lib/football-api";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is not set");
+// Prefer the public proxy host: under `railway run` DATABASE_URL resolves to the
+// internal postgres.railway.internal address, which is only reachable from
+// inside Railway — not from a laptop running this script.
+const connectionString = process.env.DATABASE_PUBLIC_URL ?? process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_PUBLIC_URL / DATABASE_URL not set");
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
