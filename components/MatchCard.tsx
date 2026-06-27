@@ -329,13 +329,13 @@ export function MatchCard(props: Props) {
           </div>
 
           {isKnockout && !props.isLocked && isDraw && (
-            <div className="mt-3 flex flex-col items-center gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-300/80">
+            <div className="mt-3 space-y-1.5">
+              <p className="text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-300/80">
                 Egal · cine merge mai departe la penalty-uri?
-              </span>
-              <div className="flex items-center gap-2">
+              </p>
+              <div className="grid grid-cols-2 gap-2">
                 <AdvancerButton
-                  label={props.homeTeam!.name}
+                  team={props.homeTeam!}
                   active={homeAdvances === true}
                   onClick={() => {
                     setTouched(true);
@@ -343,7 +343,7 @@ export function MatchCard(props: Props) {
                   }}
                 />
                 <AdvancerButton
-                  label={props.awayTeam!.name}
+                  team={props.awayTeam!}
                   active={homeAdvances === false}
                   onClick={() => {
                     setTouched(true);
@@ -518,11 +518,11 @@ function ScoreInput({
 }
 
 function AdvancerButton({
-  label,
+  team,
   active,
   onClick,
 }: {
-  label: string;
+  team: Team;
   active: boolean;
   onClick: () => void;
 }) {
@@ -531,13 +531,14 @@ function AdvancerButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`max-w-[44%] truncate rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] transition ${
+      className={`flex min-w-0 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition ${
         active
-          ? "border-amber-400/60 bg-amber-400/20 text-amber-100"
-          : "border-slate-700 bg-slate-900/60 text-slate-300 hover:border-amber-400/40"
+          ? "border-amber-400/60 bg-amber-400/20 text-amber-100 ring-1 ring-amber-400/30"
+          : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-amber-400/40 hover:text-amber-100/90"
       }`}
     >
-      {label}
+      <FlagImage emoji={team.flagEmoji} className="h-3.5 w-auto shrink-0" />
+      <span className="truncate">{team.name}</span>
     </button>
   );
 }
