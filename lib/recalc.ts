@@ -13,19 +13,37 @@ function isGroupRound(round: Round): boolean {
   return (GROUP_ROUNDS as readonly Round[]).includes(round);
 }
 
+// Which team progressed from a finished knockout match. A decisive scoreline
+// names the winner directly; a draw was settled on penalties, so we defer to the
+// recorded shootout winner (homeAdvanced). Returns null if it can't be resolved
+// (incomplete data, or a draw with no shootout winner recorded yet).
+function knockoutWinnerId(match: {
+  homeTeamId: number | null;
+  awayTeamId: number | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  homeAdvanced: boolean | null;
+}): number | null {
+  if (match.homeTeamId === null || match.awayTeamId === null) return null;
+  if (match.homeScore === null || match.awayScore === null) return null;
+  if (match.homeScore > match.awayScore) return match.homeTeamId;
+  if (match.awayScore > match.homeScore) return match.awayTeamId;
+  if (match.homeAdvanced === true) return match.homeTeamId;
+  if (match.homeAdvanced === false) return match.awayTeamId;
+  return null;
+}
+
 export function computePointsForPrediction(
   match: {
     round: Round;
     homeScore: number;
     awayScore: number;
-    wentToEt: boolean | null;
-    wentToPens: boolean | null;
+    homeAdvanced: boolean | null;
   },
   pred: {
     homeScore: number;
     awayScore: number;
-    predictsEt: boolean | null;
-    predictsPens: boolean | null;
+    homeAdvances: boolean | null;
   }
 ): number {
   if (isGroupRound(match.round)) {
@@ -38,14 +56,12 @@ export function computePointsForPrediction(
     {
       ph: pred.homeScore,
       pa: pred.awayScore,
-      predictsEt: pred.predictsEt ?? false,
-      predictsPens: pred.predictsPens ?? false,
+      homeAdvances: pred.homeAdvances,
     },
     {
       ah: match.homeScore,
       aa: match.awayScore,
-      wentToEt: match.wentToEt ?? false,
-      wentToPens: match.wentToPens ?? false,
+      homeAdvances: match.homeAdvanced,
     }
   );
 }
@@ -72,14 +88,12 @@ export async function recalcPointsForMatch(
         round: match.round,
         homeScore: match.homeScore!,
         awayScore: match.awayScore!,
-        wentToEt: match.wentToEt,
-        wentToPens: match.wentToPens,
+        homeAdvanced: match.homeAdvanced,
       },
       {
         homeScore: p.homeScore,
         awayScore: p.awayScore,
-        predictsEt: p.predictsEt,
-        predictsPens: p.predictsPens,
+        homeAdvances: p.homeAdvances,
       }
     );
     const bucket = idsByPoints.get(pts);
@@ -181,9 +195,8 @@ export async function recalcGroupStandings(
 }
 
 // Re-evaluate dark-horse buckets every time a KO match flips to FINISHED.
-// A team's best-round-reached determines the bucket. Admin convention: the
-// 90-min score column encodes the eventual winner even when the match went to
-// penalty kicks, so winner = whichever side has the higher score.
+// A team's best-round-reached determines the bucket. The advancer comes from
+// knockoutWinnerId, which reads the shootout winner for draws decided on pens.
 export async function recalcDarkHorse(prisma: PrismaClient): Promise<void> {
   const allKo = await prisma.match.findMany({
     where: { round: { in: KO_ROUNDS_FOR_DARK_HORSE as unknown as Round[] } },
@@ -213,12 +226,7 @@ export async function recalcDarkHorse(prisma: PrismaClient): Promise<void> {
     playedInRound[m.round]?.add(m.homeTeamId);
     playedInRound[m.round]?.add(m.awayTeamId);
 
-    const winnerId =
-      m.homeScore > m.awayScore
-        ? m.homeTeamId
-        : m.awayScore > m.homeScore
-          ? m.awayTeamId
-          : null;
+    const winnerId = knockoutWinnerId(m);
     if (!winnerId) continue;
 
     advancedFromRound[m.round]?.add(winnerId);
@@ -265,12 +273,7 @@ export async function recalcChampionAndRunnerUp(prisma: PrismaClient): Promise<v
   if (!final || final.homeScore === null || final.awayScore === null) return;
   if (final.homeTeamId === null || final.awayTeamId === null) return;
 
-  const winnerId =
-    final.homeScore > final.awayScore
-      ? final.homeTeamId
-      : final.awayScore > final.homeScore
-        ? final.awayTeamId
-        : null;
+  const winnerId = knockoutWinnerId(final);
   if (!winnerId) return;
   const runnerUpId = winnerId === final.homeTeamId ? final.awayTeamId : final.homeTeamId;
 
@@ -314,6 +317,7 @@ export async function clearMatchResult(
       awayScore: null,
       wentToEt: null,
       wentToPens: null,
+      homeAdvanced: null,
       status: "SCHEDULED",
     },
   });

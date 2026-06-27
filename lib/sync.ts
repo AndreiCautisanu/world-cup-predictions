@@ -64,6 +64,20 @@ export async function processFdMatches(
     const wentToPens = fd.score.duration === "PENALTY_SHOOTOUT";
     const wentToEt = wentToPens || fd.score.duration === "EXTRA_TIME";
 
+    // Knockout matches: record who progressed. football-data's `winner` already
+    // reflects the shootout outcome for a draw decided on penalties, so it is the
+    // source of truth even though fullTime stays level. (Group games never set
+    // this — a draw is just a draw.) `fullTime` carries the official 120-minute
+    // scoreline, which we keep verbatim, draws included.
+    const isKnockout = !["GROUP_1", "GROUP_2", "GROUP_3"].includes(match.round);
+    const homeAdvanced = !isKnockout
+      ? null
+      : fd.score.winner === "HOME_TEAM"
+        ? true
+        : fd.score.winner === "AWAY_TEAM"
+          ? false
+          : null;
+
     // KO matches: fill in team ids from FD once the bracket is known.
     const teamFillIn: { homeTeamId?: number; awayTeamId?: number } = {};
     if (match.homeTeamId === null && fd.homeTeam.tla) {
@@ -81,12 +95,13 @@ export async function processFdMatches(
       match.awayScore === away &&
       (match.wentToEt ?? false) === wentToEt &&
       (match.wentToPens ?? false) === wentToPens &&
+      match.homeAdvanced === homeAdvanced &&
       Object.keys(teamFillIn).length === 0;
     if (noChange) continue;
 
     await prisma.match.update({
       where: { id: match.id },
-      data: { homeScore: home, awayScore: away, wentToEt, wentToPens, status: "FINISHED", ...teamFillIn },
+      data: { homeScore: home, awayScore: away, wentToEt, wentToPens, homeAdvanced, status: "FINISHED", ...teamFillIn },
     });
 
     await calculateAndStorePoints(prisma, match.id);

@@ -147,8 +147,7 @@ export default async function PronosticuriPage({
                 round={m.round}
                 initialHome={userPred?.homeScore ?? null}
                 initialAway={userPred?.awayScore ?? null}
-                initialPredictsEt={userPred?.predictsEt ?? null}
-                initialPredictsPens={userPred?.predictsPens ?? null}
+                initialHomeAdvances={userPred?.homeAdvances ?? null}
                 pointsAwarded={userPred?.pointsAwarded ?? null}
                 actualHome={m.status === "FINISHED" ? m.homeScore : null}
                 actualAway={m.status === "FINISHED" ? m.awayScore : null}

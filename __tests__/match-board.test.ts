@@ -1,6 +1,6 @@
 import {
   predictionBucket,
-  koDrawBadge,
+  koDrawAdvancer,
   shapeParticipants,
   bucketParticipants,
   type PredictionRow,
@@ -20,17 +20,15 @@ describe("predictionBucket", () => {
   });
 });
 
-describe("koDrawBadge", () => {
-  it("returns 'pen' when penalties predicted (takes precedence)", () => {
-    expect(koDrawBadge({ predictsEt: true, predictsPens: true })).toBe("pen");
-    expect(koDrawBadge({ predictsEt: false, predictsPens: true })).toBe("pen");
+describe("koDrawAdvancer", () => {
+  it("returns 'home' when home backed to win the shootout", () => {
+    expect(koDrawAdvancer({ homeAdvances: true })).toBe("home");
   });
-  it("returns 'prel' when only extra time predicted", () => {
-    expect(koDrawBadge({ predictsEt: true, predictsPens: false })).toBe("prel");
+  it("returns 'away' when away backed to win the shootout", () => {
+    expect(koDrawAdvancer({ homeAdvances: false })).toBe("away");
   });
-  it("returns null when neither", () => {
-    expect(koDrawBadge({ predictsEt: false, predictsPens: false })).toBeNull();
-    expect(koDrawBadge({ predictsEt: null, predictsPens: null })).toBeNull();
+  it("returns null when unspecified", () => {
+    expect(koDrawAdvancer({ homeAdvances: null })).toBeNull();
   });
 });
 
@@ -38,8 +36,7 @@ const row = (over: Partial<PredictionRow> = {}): PredictionRow => ({
   userId: 1,
   homeScore: 1,
   awayScore: 0,
-  predictsEt: null,
-  predictsPens: null,
+  homeAdvances: null,
   pointsAwarded: null,
   user: { username: "u", firstName: null, lastName: null },
   ...over,
@@ -65,8 +62,7 @@ describe("bucketParticipants", () => {
     isMe: false,
     homeScore: 0,
     awayScore: 0,
-    predictsEt: null,
-    predictsPens: null,
+    homeAdvances: null,
     pointsAwarded: null,
     ...over,
   });

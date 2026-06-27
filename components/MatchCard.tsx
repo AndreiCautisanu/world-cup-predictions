@@ -49,8 +49,7 @@ type Props = {
   round: string;
   initialHome?: number | null;
   initialAway?: number | null;
-  initialPredictsEt?: boolean | null;
-  initialPredictsPens?: boolean | null;
+  initialHomeAdvances?: boolean | null;
   pointsAwarded?: number | null;
   // Actual match result, present once the match has finished. Shown alongside
   // the points badge so a scored card explains itself without navigating away.
@@ -67,8 +66,7 @@ export const BATCH_SAVED_EVENT = "pronosticuri:batch-saved";
 export type DirtyPayload = {
   homeScore: number;
   awayScore: number;
-  predictsEt: boolean;
-  predictsPens: boolean;
+  homeAdvances: boolean | null;
 };
 
 export type DirtyEventDetail = {
@@ -99,7 +97,7 @@ function clampScore(value: number): number {
   return Math.max(0, Math.min(20, Math.floor(value)));
 }
 
-type SavedSnapshot = { home: number; away: number; et: boolean; pens: boolean };
+type SavedSnapshot = { home: number; away: number; adv: boolean | null };
 
 export function MatchCard(props: Props) {
   const isKnockout = isKnockoutRound(props.round);
@@ -110,15 +108,13 @@ export function MatchCard(props: Props) {
     return {
       home: props.initialHome,
       away: props.initialAway ?? 0,
-      et: props.initialPredictsEt ?? false,
-      pens: props.initialPredictsPens ?? false,
+      adv: props.initialHomeAdvances ?? null,
     };
-  }, [props.initialHome, props.initialAway, props.initialPredictsEt, props.initialPredictsPens]);
+  }, [props.initialHome, props.initialAway, props.initialHomeAdvances]);
 
   const [home, setHome] = useState<number>(initialSnapshot?.home ?? 0);
   const [away, setAway] = useState<number>(initialSnapshot?.away ?? 0);
-  const [predictsEt, setPredictsEt] = useState<boolean>(initialSnapshot?.et ?? false);
-  const [predictsPens, setPredictsPens] = useState<boolean>(initialSnapshot?.pens ?? false);
+  const [homeAdvances, setHomeAdvances] = useState<boolean | null>(initialSnapshot?.adv ?? null);
   const [lastSaved, setLastSaved] = useState<SavedSnapshot | null>(initialSnapshot);
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -127,14 +123,20 @@ export function MatchCard(props: Props) {
 
   const hasSavedEver = lastSaved !== null;
 
+  // A knockout draw is decided on penalties, so the pick is only complete once
+  // the user says who advances. Decisive picks and group games are always fine.
+  const isDraw = home === away;
+  const needsAdvancer = isKnockout && isDraw;
+  const incomplete = needsAdvancer && homeAdvances === null;
+
   const isDirty = useMemo(() => {
     if (lastSaved === null) return touched;
     if (home !== lastSaved.home || away !== lastSaved.away) return true;
-    if (!isKnockout) return false;
-    return predictsEt !== lastSaved.et || predictsPens !== lastSaved.pens;
-  }, [home, away, predictsEt, predictsPens, lastSaved, touched, isKnockout]);
+    if (!needsAdvancer) return false;
+    return homeAdvances !== lastSaved.adv;
+  }, [home, away, homeAdvances, lastSaved, touched, needsAdvancer]);
 
-  const canSave = isDirty || !hasSavedEver;
+  const canSave = (isDirty || !hasSavedEver) && !incomplete;
 
   // Dispatch dirty state + the latest unsaved payload so the parent toolbar
   // can batch-submit them with a single POST when the user clicks "Salvează
@@ -142,29 +144,31 @@ export function MatchCard(props: Props) {
   // in the toolbar stays current.
   useEffect(() => {
     if (props.isLocked || isPlaceholder) return;
-    const payload: DirtyPayload | null = isDirty
-      ? {
-          homeScore: home,
-          awayScore: away,
-          predictsEt: isKnockout ? predictsEt : false,
-          predictsPens: isKnockout ? predictsPens : false,
-        }
-      : null;
+    // An incomplete draw pick (no advancer chosen) emits no payload, so the
+    // "Salvează tot" toolbar skips it rather than persisting a half-pick.
+    const payload: DirtyPayload | null =
+      isDirty && !incomplete
+        ? {
+            homeScore: home,
+            awayScore: away,
+            homeAdvances: needsAdvancer ? homeAdvances : null,
+          }
+        : null;
     const ev = new CustomEvent<DirtyEventDetail>(DIRTY_EVENT, {
-      detail: { matchId: props.matchId, isDirty, round: props.round, payload },
+      detail: { matchId: props.matchId, isDirty: isDirty && !incomplete, round: props.round, payload },
     });
     window.dispatchEvent(ev);
   }, [
     isDirty,
+    incomplete,
     props.matchId,
     props.isLocked,
     props.round,
     isPlaceholder,
     home,
     away,
-    predictsEt,
-    predictsPens,
-    isKnockout,
+    homeAdvances,
+    needsAdvancer,
   ]);
 
   // Apply a batch-save acknowledgement from the toolbar.
@@ -177,8 +181,7 @@ export function MatchCard(props: Props) {
       setLastSaved({
         home: match.snapshot.homeScore,
         away: match.snapshot.awayScore,
-        et: match.snapshot.predictsEt,
-        pens: match.snapshot.predictsPens,
+        adv: match.snapshot.homeAdvances,
       });
       setTouched(false);
       setStatus("saved");
@@ -197,9 +200,8 @@ export function MatchCard(props: Props) {
       homeScore: home,
       awayScore: away,
     };
-    if (isKnockout) {
-      body.predictsEt = predictsEt;
-      body.predictsPens = predictsPens;
+    if (needsAdvancer) {
+      body.homeAdvances = homeAdvances;
     }
     try {
       const res = await fetch("/api/predictions/match", {
@@ -208,7 +210,7 @@ export function MatchCard(props: Props) {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        setLastSaved({ home, away, et: predictsEt, pens: predictsPens });
+        setLastSaved({ home, away, adv: needsAdvancer ? homeAdvances : null });
         setTouched(false);
         setStatus("saved");
       } else {
@@ -219,7 +221,7 @@ export function MatchCard(props: Props) {
     } finally {
       setSaving(false);
     }
-  }, [saving, canSave, props.matchId, home, away, predictsEt, predictsPens, isKnockout]);
+  }, [saving, canSave, props.matchId, home, away, homeAdvances, needsAdvancer]);
 
   // Scored predictions override locked/saved chrome with a tier-based palette
   // (rose miss → amber partial → sky close → emerald exact → gold perfect).
@@ -326,37 +328,44 @@ export function MatchCard(props: Props) {
             <TeamSide team={props.awayTeam!} align="left" />
           </div>
 
-          {isKnockout && !props.isLocked && (
-            <div className="mt-3 flex items-center justify-center gap-4 text-xs text-slate-400">
-              <Toggle
-                label="Prelungiri"
-                checked={predictsEt}
-                onChange={(v) => {
-                  setTouched(true);
-                  setPredictsEt(v);
-                }}
-              />
-              <Toggle
-                label="Penalty-uri"
-                checked={predictsPens}
-                onChange={(v) => {
-                  setTouched(true);
-                  setPredictsPens(v);
-                }}
-              />
+          {isKnockout && !props.isLocked && isDraw && (
+            <div className="mt-3 flex flex-col items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-300/80">
+                Egal · cine merge mai departe la penalty-uri?
+              </span>
+              <div className="flex items-center gap-2">
+                <AdvancerButton
+                  label={props.homeTeam!.name}
+                  active={homeAdvances === true}
+                  onClick={() => {
+                    setTouched(true);
+                    setHomeAdvances(true);
+                  }}
+                />
+                <AdvancerButton
+                  label={props.awayTeam!.name}
+                  active={homeAdvances === false}
+                  onClick={() => {
+                    setTouched(true);
+                    setHomeAdvances(false);
+                  }}
+                />
+              </div>
             </div>
           )}
 
           {!props.isLocked && (
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                {hasSavedEver
-                  ? isDirty
-                    ? "Modificări nesalvate"
-                    : "Pronostic salvat"
-                  : isDirty
-                    ? "Apasă „Salvează"
-                    : "Niciun pronostic încă"}
+                {incomplete
+                  ? "Alege cine avansează"
+                  : hasSavedEver
+                    ? isDirty
+                      ? "Modificări nesalvate"
+                      : "Pronostic salvat"
+                    : isDirty
+                      ? "Apasă „Salvează"
+                      : "Niciun pronostic încă"}
               </span>
               <button
                 type="button"
@@ -508,25 +517,28 @@ function ScoreInput({
   );
 }
 
-function Toggle({
+function AdvancerButton({
   label,
-  checked,
-  onChange,
+  active,
+  onClick,
 }: {
   label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/60 px-2.5 py-1 text-[11px] uppercase tracking-[0.1em] transition hover:border-amber-400/40">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-3.5 w-3.5 cursor-pointer rounded border-slate-600 bg-slate-950 text-amber-400 accent-amber-400"
-      />
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`max-w-[44%] truncate rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] transition ${
+        active
+          ? "border-amber-400/60 bg-amber-400/20 text-amber-100"
+          : "border-slate-700 bg-slate-900/60 text-slate-300 hover:border-amber-400/40"
+      }`}
+    >
       {label}
-    </label>
+    </button>
   );
 }
 

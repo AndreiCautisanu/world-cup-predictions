@@ -23,39 +23,94 @@ describe("groupMatchPoints", () => {
 });
 
 describe("knockoutMatchPoints", () => {
-  it("returns 0 when wrong winner", () => {
-    expect(knockoutMatchPoints(
-      { ph: 2, pa: 1, predictsEt: false, predictsPens: false },
-      { ah: 0, aa: 1, wentToEt: false, wentToPens: false }
-    )).toBe(0);
+  // A decisive win predicted as "home advances", true winner is away.
+  it("returns 0 for the wrong advancer (decisive)", () => {
+    expect(knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 0, aa: 1 })).toBe(0);
   });
 
-  it("returns 4 for correct winner only", () => {
-    expect(knockoutMatchPoints(
-      { ph: 2, pa: 1, predictsEt: false, predictsPens: false },
-      { ah: 3, aa: 0, wentToEt: false, wentToPens: false }
-    )).toBe(4);
+  // Predicted a decisive draw-buster the wrong way and it actually went to pens
+  // the other side — still wrong advancer, and not even a draw call.
+  it("returns 0 for wrong advancer with a decisive pick when result is pens", () => {
+    expect(
+      knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 1, aa: 1, homeAdvances: false })
+    ).toBe(0);
   });
 
-  it("returns 8 for correct winner + exact 90-min score", () => {
-    expect(knockoutMatchPoints(
-      { ph: 2, pa: 1, predictsEt: false, predictsPens: false },
-      { ah: 2, aa: 1, wentToEt: false, wentToPens: false }
-    )).toBe(8);
+  describe("right advancer", () => {
+    it("returns 10 for exact decisive scoreline", () => {
+      expect(knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 2, aa: 1 })).toBe(10);
+    });
+
+    it("returns 7 for right manner (decisive) but inexact score", () => {
+      expect(knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 3, aa: 0 })).toBe(7);
+    });
+
+    it("returns 10 for exact draw + correctly backed shootout winner", () => {
+      expect(
+        knockoutMatchPoints(
+          { ph: 1, pa: 1, homeAdvances: true },
+          { ah: 1, aa: 1, homeAdvances: true }
+        )
+      ).toBe(10);
+    });
+
+    it("returns 7 for right pens advancer but inexact draw score", () => {
+      expect(
+        knockoutMatchPoints(
+          { ph: 1, pa: 1, homeAdvances: true },
+          { ah: 2, aa: 2, homeAdvances: true }
+        )
+      ).toBe(7);
+    });
+
+    it("returns 4 when the advancer is right but the manner is wrong (said decisive, went to pens)", () => {
+      expect(
+        knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 1, aa: 1, homeAdvances: true })
+      ).toBe(4);
+    });
+
+    it("returns 4 when the advancer is right but the manner is wrong (said pens, was decisive)", () => {
+      expect(
+        knockoutMatchPoints({ ph: 1, pa: 1, homeAdvances: true }, { ah: 2, aa: 1 })
+      ).toBe(4);
+    });
   });
 
-  it("returns 10 for correct winner + exact + correctly called ET/pens", () => {
-    expect(knockoutMatchPoints(
-      { ph: 1, pa: 1, predictsEt: true, predictsPens: true },
-      { ah: 1, aa: 1, wentToEt: true, wentToPens: true }
-    )).toBe(10);
+  describe("wrong advancer consolation", () => {
+    it("returns 4 for calling a draw→pens even though the wrong side won the shootout", () => {
+      expect(
+        knockoutMatchPoints(
+          { ph: 1, pa: 1, homeAdvances: false },
+          { ah: 1, aa: 1, homeAdvances: true }
+        )
+      ).toBe(4);
+    });
+
+    it("caps the consolation at 4 — an exact draw with the wrong pens winner never beats a right advancer", () => {
+      const wrongAdvancerExactDraw = knockoutMatchPoints(
+        { ph: 1, pa: 1, homeAdvances: false },
+        { ah: 1, aa: 1, homeAdvances: true }
+      );
+      const rightAdvancerWrongManner = knockoutMatchPoints(
+        { ph: 2, pa: 1 },
+        { ah: 1, aa: 1, homeAdvances: true }
+      );
+      expect(wrongAdvancerExactDraw).toBe(4);
+      expect(wrongAdvancerExactDraw).toBeLessThanOrEqual(rightAdvancerWrongManner);
+    });
   });
 
-  it("handles a draw at 90 that goes to ET only (not pens)", () => {
-    expect(knockoutMatchPoints(
-      { ph: 1, pa: 1, predictsEt: true, predictsPens: false },
-      { ah: 1, aa: 1, wentToEt: true, wentToPens: false }
-    )).toBe(10);
+  // The scenario from the design discussion: actual is "1–1, home wins on pens".
+  it("ranks the pens-caller above the decisive-caller (both backing the right team)", () => {
+    const result = { ah: 1, aa: 1, homeAdvances: true };
+    const decisiveCaller = knockoutMatchPoints({ ph: 2, pa: 1 }, result); // "home 2-1"
+    const pensCaller = knockoutMatchPoints(
+      { ph: 1, pa: 1, homeAdvances: true }, // "draw → pens, home advances"
+      result
+    );
+    expect(decisiveCaller).toBe(4);
+    expect(pensCaller).toBe(10);
+    expect(pensCaller).toBeGreaterThan(decisiveCaller);
   });
 });
 

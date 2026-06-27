@@ -156,8 +156,7 @@ export default async function JucatorPage({
       matchId: true,
       homeScore: true,
       awayScore: true,
-      predictsEt: true,
-      predictsPens: true,
+      homeAdvances: true,
       pointsAwarded: true,
     },
   });
@@ -400,6 +399,7 @@ function MatchRow({
     awayScore: number | null;
     wentToEt: boolean | null;
     wentToPens: boolean | null;
+    homeAdvanced: boolean | null;
     slotDescription: string | null;
     group: { name: string } | null;
     homeTeam: { name: string; flagEmoji: string } | null;
@@ -408,8 +408,7 @@ function MatchRow({
   prediction: {
     homeScore: number;
     awayScore: number;
-    predictsEt: boolean | null;
-    predictsPens: boolean | null;
+    homeAdvances: boolean | null;
     pointsAwarded: number | null;
   } | null;
   isVisible: boolean;
@@ -470,9 +469,9 @@ function MatchRow({
             <TeamLabel team={m.awayTeam} align="left" />
           </div>
 
-          {(pred.predictsEt || pred.predictsPens) && !finished && (
+          {pred.homeScore === pred.awayScore && pred.homeAdvances !== null && !finished && (
             <p className="border-t border-slate-800/60 bg-slate-900/30 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-300/90">
-              A pariat pe {pred.predictsPens ? "penalty-uri" : "prelungiri"}
+              {pred.homeAdvances ? m.homeTeam?.name : m.awayTeam?.name} avansează la penalty-uri
             </p>
           )}
 
@@ -486,6 +485,11 @@ function MatchRow({
                 {m.wentToPens && <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">(pen)</span>}
                 {m.wentToEt && !m.wentToPens && (
                   <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">(prel)</span>
+                )}
+                {m.wentToPens && m.homeAdvanced !== null && (
+                  <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                    {m.homeAdvanced ? m.homeTeam?.name : m.awayTeam?.name} ↑
+                  </span>
                 )}
               </span>
             </div>

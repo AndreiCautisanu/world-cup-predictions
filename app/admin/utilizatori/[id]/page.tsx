@@ -303,21 +303,16 @@ export default async function AdminUserDetail({
                           </div>
                         </div>
 
-                        {/* ET/pens badges for KO predictions */}
-                        {pred && (pred.predictsEt || pred.predictsPens) && (
-                          <div className="mt-2 flex justify-center gap-2">
-                            {pred.predictsEt && (
+                        {/* Predicted shootout winner for a KO draw pick */}
+                        {pred &&
+                          pred.homeScore === pred.awayScore &&
+                          pred.homeAdvances !== null && (
+                            <div className="mt-2 flex justify-center gap-2">
                               <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">
-                                Prelungiri
+                                {pred.homeAdvances ? m.homeTeam!.name : m.awayTeam!.name} la pen.
                               </span>
-                            )}
-                            {pred.predictsPens && (
-                              <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">
-                                Penalty-uri
-                              </span>
-                            )}
-                          </div>
-                        )}
+                            </div>
+                          )}
 
                         {/* Points / tier badge */}
                         {scoredTier && (

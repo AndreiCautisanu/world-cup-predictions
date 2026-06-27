@@ -10,8 +10,7 @@ const itemSchema = z.object({
   matchId: z.number().int(),
   homeScore: z.number().int().min(0).max(20),
   awayScore: z.number().int().min(0).max(20),
-  predictsEt: z.boolean().optional(),
-  predictsPens: z.boolean().optional(),
+  homeAdvances: z.boolean().nullish(),
 });
 
 const schema = z.object({

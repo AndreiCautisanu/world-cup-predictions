@@ -87,8 +87,7 @@ export function MatchdaySaveAll({ total }: Props) {
           snapshot: {
             homeScore: it.homeScore,
             awayScore: it.awayScore,
-            predictsEt: it.predictsEt,
-            predictsPens: it.predictsPens,
+            homeAdvances: it.homeAdvances,
           },
         }));
       // Drop the now-saved entries from the pending map BEFORE the cards

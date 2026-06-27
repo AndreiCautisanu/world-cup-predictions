@@ -11,8 +11,7 @@ const baseProps = {
   round: "GROUP_1",
   initialHome: null as number | null,
   initialAway: null as number | null,
-  initialPredictsEt: null as boolean | null,
-  initialPredictsPens: null as boolean | null,
+  initialHomeAdvances: null as boolean | null,
   pointsAwarded: null as number | null,
   isLocked: false,
 };
@@ -53,13 +52,12 @@ describe("MatchCard", () => {
     expect(screen.getAllByRole("textbox")).toHaveLength(2);
   });
 
-  it("does not show ET/pens toggles for a group match", () => {
+  it("does not show the advancer picker for a group match (even a 0-0 draw)", () => {
     render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
-    expect(screen.queryByLabelText(/prelungiri/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/penalty/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/cine merge mai departe/i)).not.toBeInTheDocument();
   });
 
-  it("shows ET/pens toggles for a knockout match when unlocked", () => {
+  it("shows the advancer picker for a knockout draw when unlocked", () => {
     render(
       <MatchCard
         {...baseProps}
@@ -69,8 +67,42 @@ describe("MatchCard", () => {
         awayTeam={brazil}
       />
     );
-    expect(screen.getByLabelText(/prelungiri/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/penalty/i)).toBeInTheDocument();
+    // default 0-0 is a draw → the user must pick who advances on penalties
+    expect(screen.getByText(/cine merge mai departe/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /italia/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /brazilia/i })).toBeInTheDocument();
+  });
+
+  it("hides the advancer picker once the knockout score is decisive", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="QF"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+        initialHome={2}
+        initialAway={1}
+      />
+    );
+    expect(screen.queryByText(/cine merge mai departe/i)).not.toBeInTheDocument();
+  });
+
+  it("blocks saving a knockout draw until an advancer is chosen", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="QF"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+      />
+    );
+    // 0-0 draw, no advancer picked yet → save disabled, hint shown
+    expect(screen.getByText(/alege cine avansează/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /salv/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /italia/i }));
+    expect(screen.getByRole("button", { name: /salv/i })).not.toBeDisabled();
   });
 
   it("disables score inputs and hides the save button when locked", () => {
@@ -243,6 +275,7 @@ describe("MatchCard", () => {
           awayScore: null,
           wentToEt: null,
           wentToPens: null,
+          homeAdvanced: null,
         },
         participants: [],
       }),
@@ -258,7 +291,7 @@ describe("MatchCard", () => {
     );
   });
 
-  it("includes ET/pens flags in the save body for knockout matches", async () => {
+  it("includes homeAdvances in the save body for a knockout draw pick", async () => {
     render(
       <MatchCard
         {...baseProps}
@@ -266,15 +299,13 @@ describe("MatchCard", () => {
         groupName={null}
         homeTeam={italy}
         awayTeam={brazil}
-        initialHome={0}
-        initialAway={0}
-        initialPredictsEt={true}
-        initialPredictsPens={false}
+        initialHome={1}
+        initialAway={1}
+        initialHomeAdvances={true}
       />
     );
-    // Dirty the card by bumping the home score; predictsEt/Pens remain at their initial values
-    const [homeInput] = screen.getAllByRole("textbox");
-    fireEvent.change(homeInput, { target: { value: "1" } });
+    // Already a 1-1 draw with home backed. Flip the advancer to away (Brazilia).
+    fireEvent.click(screen.getByRole("button", { name: /brazilia/i }));
     const saveButton = screen.getByRole("button", { name: /actualizează/i });
     fireEvent.click(saveButton);
 
@@ -285,10 +316,35 @@ describe("MatchCard", () => {
           body: JSON.stringify({
             matchId: 42,
             homeScore: 1,
-            awayScore: 0,
-            predictsEt: true,
-            predictsPens: false,
+            awayScore: 1,
+            homeAdvances: false,
           }),
+        })
+      );
+    });
+  });
+
+  it("omits homeAdvances from the save body for a decisive knockout pick", async () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="FINAL"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+        initialHome={2}
+        initialAway={0}
+      />
+    );
+    const [homeInput] = screen.getAllByRole("textbox");
+    fireEvent.change(homeInput, { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /actualizează/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/predictions/match",
+        expect.objectContaining({
+          body: JSON.stringify({ matchId: 42, homeScore: 3, awayScore: 0 }),
         })
       );
     });

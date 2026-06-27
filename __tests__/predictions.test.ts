@@ -21,46 +21,38 @@ describe("isKnockoutRound", () => {
 });
 
 describe("buildMatchPredictionUpsertData", () => {
-  it("strips predictsEt/predictsPens for group matches", () => {
+  it("nulls homeAdvances for group matches even if a draw is sent", () => {
     const data = buildMatchPredictionUpsertData("GROUP_1", {
-      homeScore: 2,
+      homeScore: 1,
       awayScore: 1,
-      predictsEt: true,
-      predictsPens: true,
+      homeAdvances: true,
     });
-    expect(data).toEqual({
-      homeScore: 2,
-      awayScore: 1,
-      predictsEt: null,
-      predictsPens: null,
-    });
+    expect(data).toEqual({ homeScore: 1, awayScore: 1, homeAdvances: null });
   });
 
-  it("defaults predictsEt/predictsPens to false for knockout matches when omitted", () => {
+  it("nulls homeAdvances for a decisive knockout pick", () => {
     const data = buildMatchPredictionUpsertData("QF", {
-      homeScore: 1,
+      homeScore: 2,
       awayScore: 1,
+      homeAdvances: true,
     });
-    expect(data).toEqual({
-      homeScore: 1,
-      awayScore: 1,
-      predictsEt: false,
-      predictsPens: false,
-    });
+    expect(data).toEqual({ homeScore: 2, awayScore: 1, homeAdvances: null });
   });
 
-  it("passes predictsEt/predictsPens through for knockout matches", () => {
+  it("keeps homeAdvances for a knockout draw pick", () => {
     const data = buildMatchPredictionUpsertData("FINAL", {
       homeScore: 0,
       awayScore: 0,
-      predictsEt: true,
-      predictsPens: true,
+      homeAdvances: false,
     });
-    expect(data).toEqual({
-      homeScore: 0,
-      awayScore: 0,
-      predictsEt: true,
-      predictsPens: true,
+    expect(data).toEqual({ homeScore: 0, awayScore: 0, homeAdvances: false });
+  });
+
+  it("defaults a knockout draw's homeAdvances to null when omitted", () => {
+    const data = buildMatchPredictionUpsertData("R32", {
+      homeScore: 1,
+      awayScore: 1,
     });
+    expect(data).toEqual({ homeScore: 1, awayScore: 1, homeAdvances: null });
   });
 });

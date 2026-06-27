@@ -118,6 +118,7 @@ export default async function AdminRezultate({
                 awayScore: m.awayScore,
                 wentToEt: m.wentToEt,
                 wentToPens: m.wentToPens,
+                homeAdvanced: m.homeAdvanced,
                 status: m.status,
               }}
               allTeams={allTeams}

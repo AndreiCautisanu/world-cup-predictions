@@ -7,33 +7,29 @@ export function isKnockoutRound(round: string): boolean {
 export type MatchPredictionInput = {
   homeScore: number;
   awayScore: number;
-  predictsEt?: boolean;
-  predictsPens?: boolean;
+  // Who advances on penalties — only relevant for a knockout draw pick.
+  homeAdvances?: boolean | null;
 };
 
 export type MatchPredictionUpsertData = {
   homeScore: number;
   awayScore: number;
-  predictsEt: boolean | null;
-  predictsPens: boolean | null;
+  homeAdvances: boolean | null;
 };
 
 export function buildMatchPredictionUpsertData(
   round: string,
   input: MatchPredictionInput
 ): MatchPredictionUpsertData {
-  if (!isKnockoutRound(round)) {
-    return {
-      homeScore: input.homeScore,
-      awayScore: input.awayScore,
-      predictsEt: null,
-      predictsPens: null,
-    };
-  }
+  // homeAdvances only carries meaning for a knockout draw pick. For group games
+  // and decisive knockout picks the scoreline already determines the outcome,
+  // so we null it out to keep the stored data unambiguous.
+  const isDraw = input.homeScore === input.awayScore;
+  const homeAdvances =
+    isKnockoutRound(round) && isDraw ? input.homeAdvances ?? null : null;
   return {
     homeScore: input.homeScore,
     awayScore: input.awayScore,
-    predictsEt: input.predictsEt ?? false,
-    predictsPens: input.predictsPens ?? false,
+    homeAdvances,
   };
 }

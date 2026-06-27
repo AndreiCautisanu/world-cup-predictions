@@ -13,11 +13,12 @@ const boardResponse = {
     awayScore: 1,
     wentToEt: false,
     wentToPens: false,
+    homeAdvanced: null,
   },
   participants: [
-    { displayName: "Ana", isMe: true, homeScore: 2, awayScore: 1, predictsEt: null, predictsPens: null, pointsAwarded: 8 },
-    { displayName: "Bob", isMe: false, homeScore: 1, awayScore: 1, predictsEt: false, predictsPens: true, pointsAwarded: 0 },
-    { displayName: "Cici", isMe: false, homeScore: 0, awayScore: 2, predictsEt: null, predictsPens: null, pointsAwarded: 0 },
+    { displayName: "Ana", isMe: true, homeScore: 2, awayScore: 1, homeAdvances: null, pointsAwarded: 10 },
+    { displayName: "Bob", isMe: false, homeScore: 1, awayScore: 1, homeAdvances: false, pointsAwarded: 0 },
+    { displayName: "Cici", isMe: false, homeScore: 0, awayScore: 2, homeAdvances: null, pointsAwarded: 0 },
   ],
 };
 

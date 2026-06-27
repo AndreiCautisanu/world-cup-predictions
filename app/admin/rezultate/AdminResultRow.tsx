@@ -21,6 +21,7 @@ type Match = {
   awayScore: number | null;
   wentToEt: boolean | null;
   wentToPens: boolean | null;
+  homeAdvanced: boolean | null;
   status: MatchStatus;
 };
 
@@ -57,7 +58,7 @@ export function AdminResultRow({
   const [home, setHome] = useState<number>(match.homeScore ?? 0);
   const [away, setAway] = useState<number>(match.awayScore ?? 0);
   const [wentToEt, setWentToEt] = useState<boolean>(match.wentToEt ?? false);
-  const [wentToPens, setWentToPens] = useState<boolean>(match.wentToPens ?? false);
+  const [homeAdvanced, setHomeAdvanced] = useState<boolean | null>(match.homeAdvanced ?? null);
   const [homeTeamId, setHomeTeamId] = useState<number | null>(match.homeTeamId);
   const [awayTeamId, setAwayTeamId] = useState<number | null>(match.awayTeamId);
   const [status, setStatus] = useState<Status>(hasInitial ? "saved" : "idle");
@@ -68,13 +69,23 @@ export function AdminResultRow({
     [match.kickoffTime]
   );
 
+  const isDraw = home === away;
+  const needsAdvancer = isKnockout && isDraw;
+  const homeName = match.homeTeam?.name ?? allTeams.find((t) => t.id === homeTeamId)?.name ?? "Gazde";
+  const awayName = match.awayTeam?.name ?? allTeams.find((t) => t.id === awayTeamId)?.name ?? "Oaspeți";
+
   const canSave =
     (match.homeTeam ? true : homeTeamId !== null) &&
-    (match.awayTeam ? true : awayTeamId !== null);
+    (match.awayTeam ? true : awayTeamId !== null) &&
+    (!needsAdvancer || homeAdvanced !== null);
 
   async function save() {
     if (!canSave) {
-      setError("Alege ambele echipe înainte de a salva");
+      setError(
+        needsAdvancer && homeAdvanced === null
+          ? "Egal — alege cine se califică la penalty-uri"
+          : "Alege ambele echipe înainte de a salva"
+      );
       setStatus("error");
       return;
     }
@@ -89,8 +100,8 @@ export function AdminResultRow({
           matchId: match.id,
           homeScore: home,
           awayScore: away,
-          wentToEt: isKnockout ? wentToEt : false,
-          wentToPens: isKnockout ? wentToPens : false,
+          wentToEt: isKnockout && !isDraw ? wentToEt : false,
+          homeAdvanced: needsAdvancer ? homeAdvanced : null,
           ...(match.homeTeam ? {} : homeTeamId ? { homeTeamId } : {}),
           ...(match.awayTeam ? {} : awayTeamId ? { awayTeamId } : {}),
         }),
@@ -128,7 +139,7 @@ export function AdminResultRow({
       setHome(0);
       setAway(0);
       setWentToEt(false);
-      setWentToPens(false);
+      setHomeAdvanced(null);
       setStatus("idle");
       router.refresh();
     } catch {
@@ -191,8 +202,8 @@ export function AdminResultRow({
         />
       </div>
 
-      {isKnockout && (
-        <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-300">
+      {isKnockout && !isDraw && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-300">
           <label className="inline-flex items-center gap-1.5 rounded-full border border-slate-800 bg-slate-900/40 px-3 py-1">
             <input
               type="checkbox"
@@ -200,20 +211,41 @@ export function AdminResultRow({
               onChange={(e) => setWentToEt(e.target.checked)}
               className="accent-rose-400"
             />
-            Prelungiri
-          </label>
-          <label className="inline-flex items-center gap-1.5 rounded-full border border-slate-800 bg-slate-900/40 px-3 py-1">
-            <input
-              type="checkbox"
-              checked={wentToPens}
-              onChange={(e) => setWentToPens(e.target.checked)}
-              className="accent-rose-400"
-            />
-            Penalty-uri
+            După prelungiri
           </label>
           <span className="text-[11px] text-slate-500">
-            Convenție: scorul de mai sus încheie meciul — la pen-uri, câștigătorul are scorul mai mare.
+            Scorul oficial după 120′. Bifează doar dacă s-a decis în prelungiri.
           </span>
+        </div>
+      )}
+
+      {needsAdvancer && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300/90">
+            Egal · cine avansează la penalty-uri?
+          </span>
+          <button
+            type="button"
+            onClick={() => setHomeAdvanced(true)}
+            className={`rounded-full border px-3 py-1 font-semibold transition ${
+              homeAdvanced === true
+                ? "border-amber-400/60 bg-amber-400/20 text-amber-100"
+                : "border-slate-800 bg-slate-900/40 text-slate-300 hover:border-slate-600"
+            }`}
+          >
+            {homeName}
+          </button>
+          <button
+            type="button"
+            onClick={() => setHomeAdvanced(false)}
+            className={`rounded-full border px-3 py-1 font-semibold transition ${
+              homeAdvanced === false
+                ? "border-amber-400/60 bg-amber-400/20 text-amber-100"
+                : "border-slate-800 bg-slate-900/40 text-slate-300 hover:border-slate-600"
+            }`}
+          >
+            {awayName}
+          </button>
         </div>
       )}
 

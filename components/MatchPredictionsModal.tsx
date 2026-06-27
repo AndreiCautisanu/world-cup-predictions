@@ -7,7 +7,7 @@ import { matchPredictionTier } from "@/lib/match-tier";
 import { TIER_TILE } from "@/lib/tier-styles";
 import {
   bucketParticipants,
-  koDrawBadge,
+  koDrawAdvancer,
   type BoardParticipant,
   type Bucket,
 } from "@/lib/match-board";
@@ -23,6 +23,7 @@ type BoardMatch = {
   awayScore: number | null;
   wentToEt: boolean | null;
   wentToPens: boolean | null;
+  homeAdvanced: boolean | null;
 };
 
 type BoardResponse = { match: BoardMatch; participants: BoardParticipant[] };
@@ -145,6 +146,11 @@ function Board({ round, data }: { round: string; data: BoardResponse }) {
           </span>
           {match.wentToPens && <Tag>pen</Tag>}
           {match.wentToEt && !match.wentToPens && <Tag>prel</Tag>}
+          {match.wentToPens && match.homeAdvanced !== null && (
+            <span className="text-xs font-semibold text-slate-300">
+              {match.homeAdvanced ? match.homeTeam?.name : match.awayTeam?.name} avansează
+            </span>
+          )}
         </div>
       )}
 
@@ -167,6 +173,8 @@ function Board({ round, data }: { round: string; data: BoardResponse }) {
                     round={round}
                     final={match.final}
                     showBadge={isKo && bucket === "draw"}
+                    homeFlag={match.homeTeam?.flagEmoji ?? null}
+                    awayFlag={match.awayTeam?.flagEmoji ?? null}
                   />
                 </li>
               ))}
@@ -183,14 +191,20 @@ function ParticipantTile({
   round,
   final,
   showBadge,
+  homeFlag,
+  awayFlag,
 }: {
   p: BoardParticipant;
   round: string;
   final: boolean;
   showBadge: boolean;
+  homeFlag: string | null;
+  awayFlag: string | null;
 }) {
   const tier = final ? matchPredictionTier(p.pointsAwarded, round) : "none";
-  const badge = showBadge ? koDrawBadge(p) : null;
+  const advancer = showBadge ? koDrawAdvancer(p) : null;
+  const advancerFlag =
+    advancer === "home" ? homeFlag : advancer === "away" ? awayFlag : null;
   return (
     <div className={`rounded-lg border px-2 py-1.5 ${TIER_TILE[tier]}`}>
       <span className="block truncate text-[11px] font-medium">
@@ -205,9 +219,14 @@ function ParticipantTile({
         <span className="font-display text-sm font-extrabold tabular-nums">
           {p.homeScore} · {p.awayScore}
         </span>
-        {badge && (
+        {advancer && (
           <span className="rounded bg-amber-400/15 px-1 text-[9px] font-semibold uppercase tracking-wide text-amber-300">
-            {badge}
+            pen
+          </span>
+        )}
+        {advancerFlag && (
+          <span aria-label="avansează" title="avansează la penalty-uri">
+            {advancerFlag}
           </span>
         )}
       </span>

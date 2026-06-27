@@ -4,19 +4,34 @@ export type MatchResult = { ah: number; aa: number };
 export type KnockoutPrediction = {
   ph: number;
   pa: number;
-  predictsEt: boolean;
-  predictsPens: boolean;
+  // Who the user backs to advance on penalties. Only consulted when the
+  // predicted scoreline is a draw (ph === pa); ignored for decisive picks.
+  homeAdvances?: boolean | null;
 };
 
 export type KnockoutResult = {
   ah: number;
   aa: number;
-  wentToEt: boolean;
-  wentToPens: boolean;
+  // Who actually advanced on penalties. Only consulted when the recorded
+  // scoreline is a draw (ah === aa); ignored for decisive results.
+  homeAdvances?: boolean | null;
 };
 
 function sign(n: number): -1 | 0 | 1 {
   return n > 0 ? 1 : n < 0 ? -1 : 0;
+}
+
+type Advancer = "HOME" | "AWAY" | null;
+
+// Who progresses, given a recorded scoreline and (for draws) the shootout winner.
+// A decisive scoreline determines the advancer on its own; a draw defers to the
+// penalties flag, which may be unknown (null) until the result is fully recorded.
+function knockoutAdvancer(h: number, a: number, homeAdvances?: boolean | null): Advancer {
+  if (h > a) return "HOME";
+  if (a > h) return "AWAY";
+  if (homeAdvances === true) return "HOME";
+  if (homeAdvances === false) return "AWAY";
+  return null;
 }
 
 export function groupMatchPoints(pred: MatchScore, actual: MatchResult): number {
@@ -29,22 +44,40 @@ export function groupMatchPoints(pred: MatchScore, actual: MatchResult): number 
   return 2;
 }
 
+// Knockout scoring is built on two facts about the official 120-minute record:
+// who advances, and the manner (decided in regulation/ET vs. drawn → penalties).
+//
+//   Right advancer + right manner + exact scoreline ... 10
+//   Right advancer + right manner, scoreline off ......  7
+//   Right advancer, wrong manner ......................  4
+//   Wrong advancer, but correctly called a draw→pens ..  4   (saw the shootout)
+//   Otherwise .........................................  0
+//
+// The invariant: a wrong-advancer pick can tie but never beat a right-advancer
+// one (both top out at 4), so calling who progresses always carries its weight.
 export function knockoutMatchPoints(
   pred: KnockoutPrediction,
   actual: KnockoutResult
 ): number {
-  const predictedResult = sign(pred.ph - pred.pa);
-  const actualResult = sign(actual.ah - actual.aa);
+  const predDraw = pred.ph === pred.pa;
+  const actualDraw = actual.ah === actual.aa;
 
-  if (predictedResult !== actualResult) return 0;
+  const predAdvancer = knockoutAdvancer(pred.ph, pred.pa, pred.homeAdvances);
+  const actualAdvancer = knockoutAdvancer(actual.ah, actual.aa, actual.homeAdvances);
+  const rightAdvancer = predAdvancer !== null && predAdvancer === actualAdvancer;
 
-  const exactScore = pred.ph === actual.ah && pred.pa === actual.aa;
-  if (!exactScore) return 4;
+  if (rightAdvancer) {
+    // "Manner" = decided-in-120 vs. drawn→pens. predDraw === actualDraw means
+    // the user called the manner correctly.
+    if (predDraw !== actualDraw) return 4;
+    const exactScore = pred.ph === actual.ah && pred.pa === actual.aa;
+    return exactScore ? 10 : 7;
+  }
 
-  const calledEt = actual.wentToEt && pred.predictsEt === true;
-  const calledPens = actual.wentToPens && pred.predictsPens === true;
-  if (calledEt || calledPens) return 10;
-  return 8;
+  // Wrong advancer: a small consolation for reading that it would be a stalemate
+  // going to penalties, even though the shootout fell the other way.
+  if (predDraw && actualDraw) return 4;
+  return 0;
 }
 
 export function groupStandingPoints(

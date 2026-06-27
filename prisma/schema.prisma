@@ -96,6 +96,10 @@ model Match {
   awayScore       Int?
   wentToEt        Boolean?
   wentToPens      Boolean?
+  // KO matches only: which side progressed. Decisive games derive this from the
+  // score, but a draw→penalties game has no winner in the recorded scoreline, so
+  // the shootout winner is stored here (true = home advanced, false = away).
+  homeAdvanced    Boolean?
   status          MatchStatus @default(SCHEDULED)
   slotDescription String?
   externalId      String?     @unique
@@ -113,8 +117,10 @@ model MatchPrediction {
   matchId       Int
   homeScore     Int
   awayScore     Int
-  predictsEt    Boolean?
-  predictsPens  Boolean?
+  // KO matches only, and only meaningful when the predicted scoreline is a draw
+  // (homeScore === awayScore): which side the user backs to win the shootout
+  // (true = home advances, false = away). null for decisive picks / group games.
+  homeAdvances  Boolean?
   pointsAwarded Int?
   updatedAt     DateTime @updatedAt
   createdAt     DateTime @default(now())

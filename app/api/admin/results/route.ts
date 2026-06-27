@@ -13,7 +13,9 @@ const schema = z.discriminatedUnion("action", [
     homeScore: z.number().int().min(0).max(20),
     awayScore: z.number().int().min(0).max(20),
     wentToEt: z.boolean().optional(),
-    wentToPens: z.boolean().optional(),
+    // Knockout draws are settled on penalties — which side advanced
+    // (true = home, false = away). Ignored for decisive / group results.
+    homeAdvanced: z.boolean().nullish(),
     homeTeamId: z.number().int().optional(),
     awayTeamId: z.number().int().optional(),
   }),
@@ -59,8 +61,16 @@ export async function POST(req: Request) {
   }
 
   // action === "save"
-  const { homeScore, awayScore, wentToEt, wentToPens, homeTeamId, awayTeamId } = parsed.data;
+  const { homeScore, awayScore, wentToEt, homeAdvanced, homeTeamId, awayTeamId } = parsed.data;
   const isKnockout = !["GROUP_1", "GROUP_2", "GROUP_3"].includes(existing.round);
+
+  // A knockout match that ends level after 120' is, by definition, decided on
+  // penalties — so derive wentToPens from the scoreline rather than trusting the
+  // client. The shootout winner (homeAdvanced) is only meaningful in that case.
+  const isDraw = homeScore === awayScore;
+  const resolvedWentToPens = isKnockout && isDraw;
+  const resolvedWentToEt = isKnockout && (resolvedWentToPens || (wentToEt ?? false));
+  const resolvedHomeAdvanced = resolvedWentToPens ? homeAdvanced ?? null : null;
 
   // Resolve the team IDs that will be persisted (override > existing) and
   // verify they're distinct and that any supplied override actually points
@@ -99,8 +109,9 @@ export async function POST(req: Request) {
     data: {
       homeScore,
       awayScore,
-      wentToEt: isKnockout ? wentToEt ?? false : false,
-      wentToPens: isKnockout ? wentToPens ?? false : false,
+      wentToEt: resolvedWentToEt,
+      wentToPens: resolvedWentToPens,
+      homeAdvanced: resolvedHomeAdvanced,
       status: "FINISHED",
       ...(homeTeamId ? { homeTeamId } : {}),
       ...(awayTeamId ? { awayTeamId } : {}),
@@ -112,8 +123,9 @@ export async function POST(req: Request) {
     matchId,
     homeScore,
     awayScore,
-    wentToEt: isKnockout ? wentToEt ?? false : false,
-    wentToPens: isKnockout ? wentToPens ?? false : false,
+    wentToEt: resolvedWentToEt,
+    wentToPens: resolvedWentToPens,
+    homeAdvanced: resolvedHomeAdvanced,
     ...(homeTeamId ? { homeTeamId } : {}),
     ...(awayTeamId ? { awayTeamId } : {}),
   });

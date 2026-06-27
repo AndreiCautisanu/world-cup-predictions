@@ -8,16 +8,15 @@ export function predictionBucket(homeScore: number, awayScore: number): Bucket {
   return "draw";
 }
 
-export type DrawBadge = "pen" | "prel" | null;
+export type DrawAdvancer = "home" | "away" | null;
 
-// For knockout predicted-draws: which tiebreak the user expects to advance the
-// game. Penalties take precedence over extra time (a pens prediction implies ET).
-export function koDrawBadge(p: {
-  predictsEt: boolean | null;
-  predictsPens: boolean | null;
-}): DrawBadge {
-  if (p.predictsPens) return "pen";
-  if (p.predictsEt) return "prel";
+// For a knockout predicted-draw, which side the user backs to win the shootout.
+// A draw pick is implicitly a penalties pick, so this is the only extra info the
+// board surfaces. null when the user didn't say (shouldn't happen for fresh
+// picks, but old/partial data may lack it).
+export function koDrawAdvancer(p: { homeAdvances: boolean | null }): DrawAdvancer {
+  if (p.homeAdvances === true) return "home";
+  if (p.homeAdvances === false) return "away";
   return null;
 }
 
@@ -26,8 +25,7 @@ export type BoardParticipant = {
   isMe: boolean;
   homeScore: number;
   awayScore: number;
-  predictsEt: boolean | null;
-  predictsPens: boolean | null;
+  homeAdvances: boolean | null;
   pointsAwarded: number | null;
 };
 
@@ -35,8 +33,7 @@ export type PredictionRow = {
   userId: number;
   homeScore: number;
   awayScore: number;
-  predictsEt: boolean | null;
-  predictsPens: boolean | null;
+  homeAdvances: boolean | null;
   pointsAwarded: number | null;
   user: { username: string; firstName: string | null; lastName: string | null };
 };
@@ -50,8 +47,7 @@ export function shapeParticipants(
     isMe: r.userId === meId,
     homeScore: r.homeScore,
     awayScore: r.awayScore,
-    predictsEt: r.predictsEt,
-    predictsPens: r.predictsPens,
+    homeAdvances: r.homeAdvances,
     pointsAwarded: r.pointsAwarded,
   }));
 }
