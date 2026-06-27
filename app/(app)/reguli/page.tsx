@@ -10,10 +10,10 @@ const GROUP_TIERS = [
 ];
 
 const KO_TIERS = [
-  { pts: 0, label: "Câștigător greșit", example: "ai zis Brazilia, a câștigat Franța", tone: "miss" as const },
-  { pts: 4, label: "Doar câștigătorul corect", example: "ai zis 2-1 Brazilia, real 3-0 Brazilia", tone: "partial" as const },
-  { pts: 8, label: "Câștigător + scor exact la 90 de minute", example: "ai zis 2-1, real 2-1 în timp regulamentar", tone: "exact" as const },
-  { pts: 10, label: "... + prelungiri/penalty-uri ghicite", example: "ai bifat „Prelungiri” și meciul a mers acolo", tone: "perfect" as const },
+  { pts: 0, label: "Altă echipă se califică", example: "ai mizat pe Brazilia, a trecut Franța", tone: "miss" as const },
+  { pts: 4, label: "Echipa corectă, dar altă manieră", example: "ai zis că se termină în 120′, dar s-a mers la penalty-uri (sau invers)", tone: "partial" as const },
+  { pts: 7, label: "Echipa + maniera corectă, scor inexact", example: "ai zis 2-1 decisiv, real 3-1 decisiv", tone: "close" as const },
+  { pts: 10, label: "Echipa + maniera + scor exact", example: "ai zis 1-1 → penalty-uri, exact așa a fost", tone: "perfect" as const },
 ];
 
 const DARK_HORSE = [
@@ -68,9 +68,15 @@ export default function ReguliPage() {
 
       <Section accent="amber" eyebrow="Meciurile eliminatorii" title="Optimi → finală · max 10 pct / meci">
         <p className="text-sm text-slate-400">
-          La eliminatorii contează cine se califică, nu doar scorul. Pentru meciurile care merg în prelungiri sau la penalty-uri, scorul din predicția ta se referă la sfârșitul timpului regulamentar (90 de minute). Bifează „Prelungiri” sau „Penalty-uri” dacă crezi că meciul ajunge acolo.
+          La eliminatorii contează în primul rând cine merge mai departe. Scorul pe care îl pronostici e cel oficial după 120 de minute (prelungiri incluse): dacă rămâne egal, e înregistrat ca egal și se decide la penalty-uri — exact ca în recordul FIFA. Când pronostici un egal, alegi și echipa pe care o vezi calificându-se la penalty-uri.
+        </p>
+        <p className="text-sm text-slate-400">
+          „Maniera” înseamnă felul în care se încheie: <strong className="text-slate-100">decis în 120′</strong> (scor decisiv) sau <strong className="text-slate-100">egal → penalty-uri</strong>. Punctele cresc cu cât prinzi mai mult din poveste — cine se califică, apoi maniera, apoi scorul exact:
         </p>
         <TierTable rows={KO_TIERS} />
+        <Callout>
+          Consolare: dacă mizezi pe egal → penalty-uri și chiar acolo se ajunge, primești <strong className="text-slate-100">4 puncte</strong> chiar dacă echipa ta pierde loteria penalty-urilor — ai citit corect că meciul se duce la penalty-uri. A ghici cine se califică nu poate fi însă niciodată depășit de cine greșește echipa calificată.
+        </Callout>
         <Callout>
           32 de meciuri × maxim 10 puncte = <strong className="text-slate-100">320 pct</strong> din eliminatorii.
         </Callout>
