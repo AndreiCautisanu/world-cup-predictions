@@ -1,4 +1,4 @@
-import { matchPredictionTier, MATCH_TIER_LABEL } from "@/lib/match-tier";
+import { matchPredictionTier, matchTierLabel, MATCH_TIER_LABEL } from "@/lib/match-tier";
 
 describe("matchPredictionTier", () => {
   it("returns 'none' when the prediction has not been scored yet", () => {
@@ -19,17 +19,21 @@ describe("matchPredictionTier", () => {
     expect(matchPredictionTier(4, "GROUP_2")).toBe("close");
   });
 
-  it("returns 'partial' for the winner-only knockout tier (4 points)", () => {
-    expect(matchPredictionTier(4, "R32")).toBe("partial");
-    expect(matchPredictionTier(4, "FINAL")).toBe("partial");
+  it("returns 'partial' for the advancer-only knockout tier (3 points)", () => {
+    expect(matchPredictionTier(3, "R32")).toBe("partial");
+    expect(matchPredictionTier(3, "FINAL")).toBe("partial");
+  });
+
+  it("returns 'close' for the KO advancer + manner tier (5 points)", () => {
+    expect(matchPredictionTier(5, "QF")).toBe("close");
   });
 
   it("returns 'exact' for the group exact-score tier (7 points)", () => {
     expect(matchPredictionTier(7, "GROUP_3")).toBe("exact");
   });
 
-  it("returns 'close' for the KO advancer + manner tier (7 points)", () => {
-    expect(matchPredictionTier(7, "QF")).toBe("close");
+  it("returns 'exact' for the KO one-team-goals tier (7 points)", () => {
+    expect(matchPredictionTier(7, "QF")).toBe("exact");
   });
 
   it("returns 'perfect' for the KO exact-score tier (10 points)", () => {
@@ -37,7 +41,7 @@ describe("matchPredictionTier", () => {
   });
 
   it("falls back conservatively when round is omitted (assumes KO mapping)", () => {
-    expect(matchPredictionTier(4)).toBe("partial");
+    expect(matchPredictionTier(3)).toBe("partial");
     expect(matchPredictionTier(10)).toBe("perfect");
   });
 
@@ -48,5 +52,22 @@ describe("matchPredictionTier", () => {
     expect(MATCH_TIER_LABEL.close).toBeTruthy();
     expect(MATCH_TIER_LABEL.exact).toBeTruthy();
     expect(MATCH_TIER_LABEL.perfect).toBeTruthy();
+  });
+});
+
+describe("matchTierLabel", () => {
+  it("labels the exact tier as a full exact score in a group match", () => {
+    expect(matchTierLabel("exact", "GROUP_1")).toBe("Scor exact");
+  });
+
+  it("relabels the exact tier in a knockout match (it means one team's goals, not a full score)", () => {
+    expect(matchTierLabel("exact", "R16")).toBe("Un scor corect");
+    expect(matchTierLabel("exact", "R16")).not.toBe("Scor exact");
+  });
+
+  it("shares the other tier labels across group and knockout", () => {
+    expect(matchTierLabel("perfect", "R16")).toBe(MATCH_TIER_LABEL.perfect);
+    expect(matchTierLabel("partial", "QF")).toBe(MATCH_TIER_LABEL.partial);
+    expect(matchTierLabel("close", "SF")).toBe(MATCH_TIER_LABEL.close);
   });
 });

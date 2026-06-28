@@ -66,7 +66,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
     console.log(`${label}:`);
     console.log(`  id=${match.id}  externalId=${match.externalId ?? "(none)"}`);
     console.log(`  score=${match.homeScore ?? "null"}-${match.awayScore ?? "null"}  status=${match.status}`);
-    console.log(`  wentToEt=${match.wentToEt}  wentToPens=${match.wentToPens}`);
+    console.log(`  wentToPens=${match.wentToPens}  homeAdvanced=${match.homeAdvanced}`);
   }
 
   await prisma.$disconnect();

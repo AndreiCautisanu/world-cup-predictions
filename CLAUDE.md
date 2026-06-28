@@ -25,7 +25,7 @@ Next.js 16 (App Router) · React 19 · Prisma 7 (`@prisma/adapter-pg`, driver ad
 - Registration is open (no invite code); owner prunes unrecognized accounts. No admin UI to bootstrap the first admin — use `scripts/_promote-admin.ts <username>`.
 
 ## Where things live
-- `lib/scoring.ts` — group 0/2/4/7, KO 0/4/8/10, bonus/dark-horse. `matchPredictionTier(pts, round)` needs round.
+- `lib/scoring.ts` — group 0/2/4/7, KO 0/3/5/7/10 (advancer + manner + scoreline; no ET), bonus/dark-horse. `matchPredictionTier(pts, round)` needs round.
 - `lib/recalc.ts` — recompute chain triggered on result save/clear (idempotent).
 - `lib/locking.ts` — match locks 1h pre-kickoff; bonus/standings lock at tournament start; also `status !== SCHEDULED`.
 - `lib/audit.ts` + `AdminAuditLog` — append-only admin action log. `lib/snapshot.ts` — JSON backup to GitHub.

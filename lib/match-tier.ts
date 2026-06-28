@@ -3,12 +3,13 @@
  * colour-code at-a-glance how well a prediction did. The buckets correspond
  * to the actual scoring values emitted by lib/scoring.ts:
  *
- *   group:    0   2 (result only)   4 (result + one side)   7 (exact)
- *   knockout: 0   4 (right advancer)   7 (advancer + manner)   10 (+ exact score)
+ *   group:    0   2 (result only)   4 (result + one side)         7 (exact)
+ *   knockout: 0   3 (advancer)   5 (+ manner)   7 (+ one side)   10 (exact)
  *
- * 4 and 7 are overloaded across the two scales — 4 is "close" in a group match
- * but "partial" in a KO match, and 7 is "exact" in a group match but "close" in
- * a KO match — so the round must be supplied to disambiguate.
+ * Several point values are overloaded across the two scales, so the round must
+ * be supplied to disambiguate. In particular the "exact" visual tier means a
+ * full exact score in a group match (7) but only "one team's goals right" in a
+ * KO match (7) — so its displayed label is round-aware (see matchTierLabel).
  */
 export type MatchTier = "none" | "miss" | "partial" | "close" | "exact" | "perfect";
 
@@ -23,8 +24,9 @@ const GROUP_TIER: Record<number, MatchTier> = {
 
 const KO_TIER: Record<number, MatchTier> = {
   0: "miss",
-  4: "partial",
-  7: "close",
+  3: "partial",
+  5: "close",
+  7: "exact",
   10: "perfect",
 };
 
@@ -38,8 +40,8 @@ export function matchPredictionTier(
   if (tier) return tier;
   // Defensive fallback for an unexpected value or an unknown round.
   if (pointsAwarded >= 10) return "perfect";
-  if (pointsAwarded >= 8) return "exact";
-  if (pointsAwarded >= 5) return "close";
+  if (pointsAwarded >= 7) return "exact";
+  if (pointsAwarded >= 4) return "close";
   if (pointsAwarded > 0) return "partial";
   return "miss";
 }
@@ -47,7 +49,7 @@ export function matchPredictionTier(
 export const MATCH_TIER_LABEL: Record<MatchTier, string> = {
   none: "În așteptare",
   miss: "Ratat",
-  // Universal across group (2pt: correct W/D/L) and KO (4pt: correct winner).
+  // Universal across group (2pt: correct W/D/L) and KO (3pt: correct advancer).
   // "Învingător" reads wrong for draws — every group prediction that landed
   // 2pts on a 0-0 / 1-1 / 2-2 etc. would have shown "Winner" with no winner.
   partial: "Rezultat corect",
@@ -55,3 +57,18 @@ export const MATCH_TIER_LABEL: Record<MatchTier, string> = {
   exact: "Scor exact",
   perfect: "Perfect!",
 };
+
+// KO matches reuse the "exact" visual tier for "one team's goals right" (7pts),
+// which is NOT a full exact score (that's perfect/10) — so override its label.
+const KO_TIER_LABEL: Partial<Record<MatchTier, string>> = {
+  exact: "Un scor corect",
+};
+
+export function matchTierLabel(tier: MatchTier, round?: string): string {
+  const isGroup = round !== undefined && GROUP_ROUNDS.has(round);
+  if (!isGroup) {
+    const override = KO_TIER_LABEL[tier];
+    if (override) return override;
+  }
+  return MATCH_TIER_LABEL[tier];
+}

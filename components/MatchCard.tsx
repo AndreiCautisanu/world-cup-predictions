@@ -7,7 +7,7 @@ import { FlagImage } from "./FlagImage";
 import { isKnockoutRound } from "@/lib/predictions";
 import {
   matchPredictionTier,
-  MATCH_TIER_LABEL,
+  matchTierLabel,
   type MatchTier,
 } from "@/lib/match-tier";
 
@@ -55,7 +55,6 @@ type Props = {
   // the points badge so a scored card explains itself without navigating away.
   actualHome?: number | null;
   actualAway?: number | null;
-  wentToEt?: boolean | null;
   wentToPens?: boolean | null;
   isLocked: boolean;
 };
@@ -412,11 +411,9 @@ export function MatchCard(props: Props) {
                   <span className="font-display text-slate-100 tabular-nums">
                     {props.actualHome} – {props.actualAway}
                   </span>
-                  {props.wentToPens ? (
+                  {props.wentToPens && (
                     <span className="ml-1 text-amber-300/80">(pen)</span>
-                  ) : props.wentToEt ? (
-                    <span className="ml-1 text-amber-300/80">(prel)</span>
-                  ) : null}
+                  )}
                 </span>
               )}
               <span
@@ -426,7 +423,7 @@ export function MatchCard(props: Props) {
                   {props.pointsAwarded === 0 ? "0 pct" : `+${props.pointsAwarded} pct`}
                 </span>
                 <span aria-hidden className="opacity-60">·</span>
-                <span>{MATCH_TIER_LABEL[tier]}</span>
+                <span>{matchTierLabel(tier, props.round)}</span>
               </span>
             </div>
           )}

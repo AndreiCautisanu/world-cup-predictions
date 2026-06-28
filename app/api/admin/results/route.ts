@@ -12,7 +12,6 @@ const schema = z.discriminatedUnion("action", [
     matchId: z.number().int(),
     homeScore: z.number().int().min(0).max(20),
     awayScore: z.number().int().min(0).max(20),
-    wentToEt: z.boolean().optional(),
     // Knockout draws are settled on penalties — which side advanced
     // (true = home, false = away). Ignored for decisive / group results.
     homeAdvanced: z.boolean().nullish(),
@@ -61,7 +60,7 @@ export async function POST(req: Request) {
   }
 
   // action === "save"
-  const { homeScore, awayScore, wentToEt, homeAdvanced, homeTeamId, awayTeamId } = parsed.data;
+  const { homeScore, awayScore, homeAdvanced, homeTeamId, awayTeamId } = parsed.data;
   const isKnockout = !["GROUP_1", "GROUP_2", "GROUP_3"].includes(existing.round);
 
   // A knockout match that ends level after 120' is, by definition, decided on
@@ -69,7 +68,6 @@ export async function POST(req: Request) {
   // client. The shootout winner (homeAdvanced) is only meaningful in that case.
   const isDraw = homeScore === awayScore;
   const resolvedWentToPens = isKnockout && isDraw;
-  const resolvedWentToEt = isKnockout && (resolvedWentToPens || (wentToEt ?? false));
   const resolvedHomeAdvanced = resolvedWentToPens ? homeAdvanced ?? null : null;
 
   // Resolve the team IDs that will be persisted (override > existing) and
@@ -109,7 +107,6 @@ export async function POST(req: Request) {
     data: {
       homeScore,
       awayScore,
-      wentToEt: resolvedWentToEt,
       wentToPens: resolvedWentToPens,
       homeAdvanced: resolvedHomeAdvanced,
       status: "FINISHED",
@@ -123,7 +120,6 @@ export async function POST(req: Request) {
     matchId,
     homeScore,
     awayScore,
-    wentToEt: resolvedWentToEt,
     wentToPens: resolvedWentToPens,
     homeAdvanced: resolvedHomeAdvanced,
     ...(homeTeamId ? { homeTeamId } : {}),

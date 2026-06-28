@@ -143,7 +143,6 @@ export default async function MeciuriPage({
                         awayTeam: m.awayTeam ? { name: m.awayTeam.name, flagEmoji: m.awayTeam.flagEmoji } : null,
                         homeScore: m.homeScore,
                         awayScore: m.awayScore,
-                        wentToEt: m.wentToEt,
                         wentToPens: m.wentToPens,
                       }}
                     />
@@ -170,7 +169,6 @@ type MatchRowData = {
   awayTeam: { name: string; flagEmoji: string } | null;
   homeScore: number | null;
   awayScore: number | null;
-  wentToEt: boolean | null;
   wentToPens: boolean | null;
 };
 
@@ -203,9 +201,9 @@ function MatchRow({ match }: { match: MatchRowData }) {
         <TeamSide team={match.awayTeam} align="left" isPlaceholder={isPlaceholder} />
       </div>
 
-      {finished && (match.wentToEt || match.wentToPens) && (
+      {finished && match.wentToPens && (
         <div className="border-t border-slate-800/60 bg-slate-900/30 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.32em] text-amber-300/90">
-          {match.wentToPens ? "Decis la penalty-uri" : "Prelungit până în prelungiri"}
+          Decis la penalty-uri
         </div>
       )}
     </li>

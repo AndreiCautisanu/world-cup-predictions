@@ -94,7 +94,6 @@ model Match {
   kickoffTime     DateTime
   homeScore       Int?
   awayScore       Int?
-  wentToEt        Boolean?
   wentToPens      Boolean?
   // KO matches only: which side progressed. Decisive games derive this from the
   // score, but a draw→penalties game has no winner in the recorded scoreline, so

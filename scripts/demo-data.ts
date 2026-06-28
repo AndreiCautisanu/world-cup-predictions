@@ -260,7 +260,6 @@ async function seed(prisma: PrismaClient): Promise<void> {
       data: {
         homeScore: a.home,
         awayScore: a.away,
-        wentToEt: false,
         wentToPens: false,
         status: "FINISHED",
       },

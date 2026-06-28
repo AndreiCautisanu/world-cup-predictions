@@ -21,7 +21,6 @@ type BoardMatch = {
   final: boolean;
   homeScore: number | null;
   awayScore: number | null;
-  wentToEt: boolean | null;
   wentToPens: boolean | null;
   homeAdvanced: boolean | null;
 };
@@ -145,7 +144,6 @@ function Board({ round, data }: { round: string; data: BoardResponse }) {
             {match.homeScore} – {match.awayScore}
           </span>
           {match.wentToPens && <Tag>pen</Tag>}
-          {match.wentToEt && !match.wentToPens && <Tag>prel</Tag>}
           {match.wentToPens && match.homeAdvanced !== null && (
             <span className="text-xs font-semibold text-slate-300">
               {match.homeAdvanced ? match.homeTeam?.name : match.awayTeam?.name} avansează

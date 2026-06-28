@@ -116,7 +116,6 @@ export default async function AdminRezultate({
                 awayTeamId: m.awayTeamId,
                 homeScore: m.homeScore,
                 awayScore: m.awayScore,
-                wentToEt: m.wentToEt,
                 wentToPens: m.wentToPens,
                 homeAdvanced: m.homeAdvanced,
                 status: m.status,

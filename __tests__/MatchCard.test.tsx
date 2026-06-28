@@ -273,7 +273,6 @@ describe("MatchCard", () => {
           final: false,
           homeScore: null,
           awayScore: null,
-          wentToEt: null,
           wentToPens: null,
           homeAdvanced: null,
         },

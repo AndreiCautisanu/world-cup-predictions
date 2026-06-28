@@ -151,7 +151,6 @@ export default async function PronosticuriPage({
                 pointsAwarded={userPred?.pointsAwarded ?? null}
                 actualHome={m.status === "FINISHED" ? m.homeScore : null}
                 actualAway={m.status === "FINISHED" ? m.awayScore : null}
-                wentToEt={m.wentToEt}
                 wentToPens={m.wentToPens}
                 isLocked={m.status !== "SCHEDULED" || isMatchLocked(m.kickoffTime)}
               />

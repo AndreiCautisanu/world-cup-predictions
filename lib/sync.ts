@@ -62,7 +62,6 @@ export async function processFdMatches(
     }
 
     const wentToPens = fd.score.duration === "PENALTY_SHOOTOUT";
-    const wentToEt = wentToPens || fd.score.duration === "EXTRA_TIME";
 
     // Knockout matches: record who progressed. football-data's `winner` already
     // reflects the shootout outcome for a draw decided on penalties, so it is the
@@ -93,7 +92,6 @@ export async function processFdMatches(
       match.status === "FINISHED" &&
       match.homeScore === home &&
       match.awayScore === away &&
-      (match.wentToEt ?? false) === wentToEt &&
       (match.wentToPens ?? false) === wentToPens &&
       match.homeAdvanced === homeAdvanced &&
       Object.keys(teamFillIn).length === 0;
@@ -101,7 +99,7 @@ export async function processFdMatches(
 
     await prisma.match.update({
       where: { id: match.id },
-      data: { homeScore: home, awayScore: away, wentToEt, wentToPens, homeAdvanced, status: "FINISHED", ...teamFillIn },
+      data: { homeScore: home, awayScore: away, wentToPens, homeAdvanced, status: "FINISHED", ...teamFillIn },
     });
 
     await calculateAndStorePoints(prisma, match.id);

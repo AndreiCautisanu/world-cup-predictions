@@ -11,7 +11,6 @@ const boardResponse = {
     final: true,
     homeScore: 2,
     awayScore: 1,
-    wentToEt: false,
     wentToPens: false,
     homeAdvanced: null,
   },

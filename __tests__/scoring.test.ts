@@ -37,15 +37,20 @@ describe("knockoutMatchPoints", () => {
   });
 
   describe("right advancer", () => {
-    it("returns 10 for exact decisive scoreline", () => {
+    it("returns 10 for an exact decisive scoreline", () => {
       expect(knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 2, aa: 1 })).toBe(10);
     });
 
-    it("returns 7 for right manner (decisive) but inexact score", () => {
-      expect(knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 3, aa: 0 })).toBe(7);
+    it("returns 7 for the right manner with one team's goals exact", () => {
+      // predicted 2-1, actual 2-0: home goals exact, decisive home win both ways
+      expect(knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 2, aa: 0 })).toBe(7);
     });
 
-    it("returns 10 for exact draw + correctly backed shootout winner", () => {
+    it("returns 5 for the right manner with neither side exact", () => {
+      expect(knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 1, aa: 0 })).toBe(5);
+    });
+
+    it("returns 10 for an exact draw + correctly backed shootout winner", () => {
       expect(
         knockoutMatchPoints(
           { ph: 1, pa: 1, homeAdvances: true },
@@ -54,39 +59,39 @@ describe("knockoutMatchPoints", () => {
       ).toBe(10);
     });
 
-    it("returns 7 for right pens advancer but inexact draw score", () => {
+    it("returns 5 for the right pens advancer but inexact draw score (no one-side tier for draws)", () => {
       expect(
         knockoutMatchPoints(
           { ph: 1, pa: 1, homeAdvances: true },
           { ah: 2, aa: 2, homeAdvances: true }
         )
-      ).toBe(7);
+      ).toBe(5);
     });
 
-    it("returns 4 when the advancer is right but the manner is wrong (said decisive, went to pens)", () => {
+    it("returns 3 when the advancer is right but the manner is wrong (said decisive, went to pens)", () => {
       expect(
         knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 1, aa: 1, homeAdvances: true })
-      ).toBe(4);
+      ).toBe(3);
     });
 
-    it("returns 4 when the advancer is right but the manner is wrong (said pens, was decisive)", () => {
+    it("returns 3 when the advancer is right but the manner is wrong (said pens, was decisive)", () => {
       expect(
         knockoutMatchPoints({ ph: 1, pa: 1, homeAdvances: true }, { ah: 2, aa: 1 })
-      ).toBe(4);
+      ).toBe(3);
     });
   });
 
   describe("wrong advancer consolation", () => {
-    it("returns 4 for calling a draw→pens even though the wrong side won the shootout", () => {
+    it("returns 3 for calling a draw→pens even though the wrong side won the shootout", () => {
       expect(
         knockoutMatchPoints(
           { ph: 1, pa: 1, homeAdvances: false },
           { ah: 1, aa: 1, homeAdvances: true }
         )
-      ).toBe(4);
+      ).toBe(3);
     });
 
-    it("caps the consolation at 4 — an exact draw with the wrong pens winner never beats a right advancer", () => {
+    it("caps the consolation — an exact draw with the wrong pens winner never beats a right advancer", () => {
       const wrongAdvancerExactDraw = knockoutMatchPoints(
         { ph: 1, pa: 1, homeAdvances: false },
         { ah: 1, aa: 1, homeAdvances: true }
@@ -95,9 +100,16 @@ describe("knockoutMatchPoints", () => {
         { ph: 2, pa: 1 },
         { ah: 1, aa: 1, homeAdvances: true }
       );
-      expect(wrongAdvancerExactDraw).toBe(4);
+      expect(wrongAdvancerExactDraw).toBe(3);
       expect(wrongAdvancerExactDraw).toBeLessThanOrEqual(rightAdvancerWrongManner);
     });
+  });
+
+  it("rewards the exact score at double a right-team-right-manner-wrong-score pick", () => {
+    const exact = knockoutMatchPoints({ ph: 1, pa: 0 }, { ah: 1, aa: 0 });
+    const looseButRight = knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 1, aa: 0 });
+    expect(exact).toBe(10);
+    expect(looseButRight).toBe(5);
   });
 
   // The scenario from the design discussion: actual is "1–1, home wins on pens".
@@ -108,7 +120,7 @@ describe("knockoutMatchPoints", () => {
       { ph: 1, pa: 1, homeAdvances: true }, // "draw → pens, home advances"
       result
     );
-    expect(decisiveCaller).toBe(4);
+    expect(decisiveCaller).toBe(3);
     expect(pensCaller).toBe(10);
     expect(pensCaller).toBeGreaterThan(decisiveCaller);
   });

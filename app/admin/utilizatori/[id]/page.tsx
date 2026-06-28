@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Round } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { matchPredictionTier, MATCH_TIER_LABEL, type MatchTier } from "@/lib/match-tier";
+import { matchPredictionTier, matchTierLabel, type MatchTier } from "@/lib/match-tier";
 import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
 import { FlagImage } from "@/components/FlagImage";
 
@@ -323,11 +323,9 @@ export default async function AdminUserDetail({
                                 <span className="font-display text-slate-100 tabular-nums">
                                   {m.homeScore} – {m.awayScore}
                                 </span>
-                                {m.wentToPens ? (
+                                {m.wentToPens && (
                                   <span className="ml-1 text-amber-300/80">(pen)</span>
-                                ) : m.wentToEt ? (
-                                  <span className="ml-1 text-amber-300/80">(prel)</span>
-                                ) : null}
+                                )}
                               </span>
                             )}
                             <span
@@ -337,7 +335,7 @@ export default async function AdminUserDetail({
                                 {pred!.pointsAwarded === 0 ? "0 pct" : `+${pred!.pointsAwarded} pct`}
                               </span>
                               <span aria-hidden className="opacity-60">·</span>
-                              <span>{MATCH_TIER_LABEL[tier]}</span>
+                              <span>{matchTierLabel(tier, m.round)}</span>
                             </span>
                           </div>
                         )}

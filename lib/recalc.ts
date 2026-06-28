@@ -315,7 +315,6 @@ export async function clearMatchResult(
     data: {
       homeScore: null,
       awayScore: null,
-      wentToEt: null,
       wentToPens: null,
       homeAdvanced: null,
       status: "SCHEDULED",

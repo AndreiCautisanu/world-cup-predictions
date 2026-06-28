@@ -19,7 +19,6 @@ type Match = {
   awayTeamId: number | null;
   homeScore: number | null;
   awayScore: number | null;
-  wentToEt: boolean | null;
   wentToPens: boolean | null;
   homeAdvanced: boolean | null;
   status: MatchStatus;
@@ -57,7 +56,6 @@ export function AdminResultRow({
 
   const [home, setHome] = useState<number>(match.homeScore ?? 0);
   const [away, setAway] = useState<number>(match.awayScore ?? 0);
-  const [wentToEt, setWentToEt] = useState<boolean>(match.wentToEt ?? false);
   const [homeAdvanced, setHomeAdvanced] = useState<boolean | null>(match.homeAdvanced ?? null);
   const [homeTeamId, setHomeTeamId] = useState<number | null>(match.homeTeamId);
   const [awayTeamId, setAwayTeamId] = useState<number | null>(match.awayTeamId);
@@ -100,7 +98,6 @@ export function AdminResultRow({
           matchId: match.id,
           homeScore: home,
           awayScore: away,
-          wentToEt: isKnockout && !isDraw ? wentToEt : false,
           homeAdvanced: needsAdvancer ? homeAdvanced : null,
           ...(match.homeTeam ? {} : homeTeamId ? { homeTeamId } : {}),
           ...(match.awayTeam ? {} : awayTeamId ? { awayTeamId } : {}),
@@ -138,7 +135,6 @@ export function AdminResultRow({
       }
       setHome(0);
       setAway(0);
-      setWentToEt(false);
       setHomeAdvanced(null);
       setStatus("idle");
       router.refresh();
@@ -203,20 +199,9 @@ export function AdminResultRow({
       </div>
 
       {isKnockout && !isDraw && (
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-300">
-          <label className="inline-flex items-center gap-1.5 rounded-full border border-slate-800 bg-slate-900/40 px-3 py-1">
-            <input
-              type="checkbox"
-              checked={wentToEt}
-              onChange={(e) => setWentToEt(e.target.checked)}
-              className="accent-rose-400"
-            />
-            După prelungiri
-          </label>
-          <span className="text-[11px] text-slate-500">
-            Scorul oficial după 120′. Bifează doar dacă s-a decis în prelungiri.
-          </span>
-        </div>
+        <p className="mt-3 text-[11px] text-slate-500">
+          Scor oficial după 120′ (prelungiri incluse).
+        </p>
       )}
 
       {needsAdvancer && (

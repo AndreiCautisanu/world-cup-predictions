@@ -77,7 +77,7 @@ describe("recalcPointsForMatch — batched writes", () => {
     const preds: Row[] = [];
     let id = 1;
     const mk = (homeScore: number, awayScore: number, expected: number) => {
-      preds.push({ id: id++, matchId: 108, homeScore, awayScore, predictsEt: null, predictsPens: null, _expected: expected });
+      preds.push({ id: id++, matchId: 108, homeScore, awayScore, _expected: expected });
     };
     for (let i = 0; i < 10; i++) {
       mk(4, 1, 7); // exact
@@ -86,7 +86,7 @@ describe("recalcPointsForMatch — batched writes", () => {
       mk(0, 2, 0); // wrong result
     }
     const prisma = makePrisma({
-      match: [{ id: 108, round: "GROUP_1", homeScore: 4, awayScore: 1, wentToEt: null, wentToPens: null, groupId: 4 }],
+      match: [{ id: 108, round: "GROUP_1", homeScore: 4, awayScore: 1, wentToPens: null, groupId: 4 }],
       matchPrediction: preds,
     });
 

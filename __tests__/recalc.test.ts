@@ -55,23 +55,33 @@ describe("computePointsForPrediction", () => {
     ).toBe(10);
   });
 
-  it("awards 4 for a KO right-advancer-only (decisive, inexact... wrong manner)", () => {
+  it("awards 3 for a KO right advancer with the wrong manner", () => {
     // Predicted a decisive home win; it actually went to penalties (home won).
     expect(
       computePointsForPrediction(
         { round: "SF", homeScore: 3, awayScore: 0, homeAdvanced: null },
         { homeScore: 1, awayScore: 1, homeAdvances: true }
       )
-    ).toBe(4);
+    ).toBe(3);
   });
 
-  it("awards 7 for the right decisive advancer with an inexact score", () => {
+  it("awards 7 for the right decisive advancer with one team's goals exact", () => {
+    // actual 1-0, predicted 2-0 → away goals (0) exact, neither a full match
     expect(
       computePointsForPrediction(
         { round: "FINAL", homeScore: 1, awayScore: 0, homeAdvanced: null },
         { homeScore: 2, awayScore: 0, homeAdvances: null }
       )
     ).toBe(7);
+  });
+
+  it("awards 5 for the right decisive advancer with neither side exact", () => {
+    expect(
+      computePointsForPrediction(
+        { round: "FINAL", homeScore: 1, awayScore: 0, homeAdvanced: null },
+        { homeScore: 3, awayScore: 1, homeAdvances: null }
+      )
+    ).toBe(5);
   });
 
   it("handles THIRD_PLACE as a knockout round", () => {

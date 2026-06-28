@@ -7,7 +7,7 @@ import { getSessionUser } from "@/lib/session";
 import { FlagImage } from "@/components/FlagImage";
 import { isMatchLocked, LOCK_OFFSET_MS, tournamentLockTime } from "@/lib/locking";
 import { buildDisplayName, summarizeLeaderboardRows } from "@/lib/leaderboard";
-import { matchPredictionTier, MATCH_TIER_LABEL, type MatchTier } from "@/lib/match-tier";
+import { matchPredictionTier, matchTierLabel, type MatchTier } from "@/lib/match-tier";
 import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
 import { TIER_TILE } from "@/lib/tier-styles";
 
@@ -397,7 +397,6 @@ function MatchRow({
     status: string;
     homeScore: number | null;
     awayScore: number | null;
-    wentToEt: boolean | null;
     wentToPens: boolean | null;
     homeAdvanced: boolean | null;
     slotDescription: string | null;
@@ -428,7 +427,7 @@ function MatchRow({
         <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">{meta}</span>
         {pred && (
           <div className="ml-auto">
-            <TierBadge tier={tier} pts={pred.pointsAwarded} />
+            <TierBadge tier={tier} pts={pred.pointsAwarded} round={m.round} />
           </div>
         )}
       </div>
@@ -483,9 +482,6 @@ function MatchRow({
               <span className="font-display text-base font-bold tabular-nums text-slate-100">
                 {m.homeScore} – {m.awayScore}
                 {m.wentToPens && <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">(pen)</span>}
-                {m.wentToEt && !m.wentToPens && (
-                  <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-amber-300/80">(prel)</span>
-                )}
                 {m.wentToPens && m.homeAdvanced !== null && (
                   <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                     {m.homeAdvanced ? m.homeTeam?.name : m.awayTeam?.name} ↑
@@ -516,8 +512,8 @@ function MatchRow({
   );
 }
 
-function TierBadge({ tier, pts }: { tier: MatchTier; pts: number | null }) {
-  const label = MATCH_TIER_LABEL[tier];
+function TierBadge({ tier, pts, round }: { tier: MatchTier; pts: number | null; round: string }) {
+  const label = matchTierLabel(tier, round);
   const ptsText = pts === null ? "—" : pts === 0 ? "0" : `+${pts}`;
   return (
     <span
