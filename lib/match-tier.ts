@@ -3,11 +3,12 @@
  * colour-code at-a-glance how well a prediction did. The buckets correspond
  * to the actual scoring values emitted by lib/scoring.ts:
  *
- *   group:    0   2 (winner only)   4 (winner + one side)   7 (exact)
- *   knockout: 0   4 (winner only)                            8 (exact regulation)   10 (exact + ET/pens called)
+ *   group:    0   2 (result only)   4 (result + one side)   7 (exact)
+ *   knockout: 0   4 (right advancer)   7 (advancer + manner)   10 (+ exact score)
  *
- * 4 is overloaded — it means "close" in a group match and "partial" in a KO
- * match — so the round must be supplied to disambiguate.
+ * 4 and 7 are overloaded across the two scales — 4 is "close" in a group match
+ * but "partial" in a KO match, and 7 is "exact" in a group match but "close" in
+ * a KO match — so the round must be supplied to disambiguate.
  */
 export type MatchTier = "none" | "miss" | "partial" | "close" | "exact" | "perfect";
 
@@ -23,7 +24,7 @@ const GROUP_TIER: Record<number, MatchTier> = {
 const KO_TIER: Record<number, MatchTier> = {
   0: "miss",
   4: "partial",
-  8: "exact",
+  7: "close",
   10: "perfect",
 };
 
@@ -33,11 +34,12 @@ export function matchPredictionTier(
 ): MatchTier {
   if (pointsAwarded === null || pointsAwarded === undefined) return "none";
   const isGroup = round !== undefined && GROUP_ROUNDS.has(round);
-  const exact = (isGroup ? GROUP_TIER : KO_TIER)[pointsAwarded];
-  if (exact) return exact;
+  const tier = (isGroup ? GROUP_TIER : KO_TIER)[pointsAwarded];
+  if (tier) return tier;
   // Defensive fallback for an unexpected value or an unknown round.
   if (pointsAwarded >= 10) return "perfect";
-  if (pointsAwarded >= 7) return "exact";
+  if (pointsAwarded >= 8) return "exact";
+  if (pointsAwarded >= 5) return "close";
   if (pointsAwarded > 0) return "partial";
   return "miss";
 }

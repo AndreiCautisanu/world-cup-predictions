@@ -28,11 +28,11 @@ describe("matchPredictionTier", () => {
     expect(matchPredictionTier(7, "GROUP_3")).toBe("exact");
   });
 
-  it("returns 'exact' for the KO regulation exact-score tier (8 points)", () => {
-    expect(matchPredictionTier(8, "QF")).toBe("exact");
+  it("returns 'close' for the KO advancer + manner tier (7 points)", () => {
+    expect(matchPredictionTier(7, "QF")).toBe("close");
   });
 
-  it("returns 'perfect' for the KO exact + ET/pens called tier (10 points)", () => {
+  it("returns 'perfect' for the KO exact-score tier (10 points)", () => {
     expect(matchPredictionTier(10, "SF")).toBe("perfect");
   });
 
