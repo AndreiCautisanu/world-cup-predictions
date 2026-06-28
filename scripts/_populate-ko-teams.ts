@@ -55,6 +55,16 @@ const MANUAL_MATCHUPS: { externalId: string; home: string; away: string }[] = [
   { externalId: "537418", home: "NED", away: "MAR" }, // Olanda – Maroc
   { externalId: "537424", home: "CIV", away: "NOR" }, // Coasta de Fildeș – Norvegia
   { externalId: "537416", home: "FRA", away: "SWE" }, // Franța – Suedia
+  { externalId: "537425", home: "MEX", away: "ECU" }, // Mexic – Ecuador
+  { externalId: "537426", home: "ENG", away: "COD" }, // Anglia – R.D. Congo
+  { externalId: "537422", home: "BEL", away: "SEN" }, // Belgia – Senegal
+  { externalId: "537421", home: "USA", away: "BIH" }, // SUA – Bosnia și Herțegovina
+  { externalId: "537420", home: "ESP", away: "AUT" }, // Spania – Austria
+  { externalId: "537419", home: "POR", away: "CRO" }, // Portugalia – Croația
+  { externalId: "537429", home: "SUI", away: "ALG" }, // Elveția – Algeria
+  { externalId: "537428", home: "AUS", away: "EGY" }, // Australia – Egipt
+  { externalId: "537427", home: "ARG", away: "CPV" }, // Argentina – Capul Verde
+  { externalId: "537430", home: "COL", away: "GHA" }, // Columbia – Ghana
 ];
 
 const KICKOFF_FMT = new Intl.DateTimeFormat("ro-RO", {
