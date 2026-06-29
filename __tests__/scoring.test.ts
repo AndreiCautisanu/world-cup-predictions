@@ -59,13 +59,13 @@ describe("knockoutMatchPoints", () => {
       ).toBe(10);
     });
 
-    it("returns 5 for the right pens advancer but inexact draw score (no one-side tier for draws)", () => {
+    it("returns 7 for a correctly-called draw → pens (right winner) even with the wrong tie score", () => {
       expect(
         knockoutMatchPoints(
           { ph: 1, pa: 1, homeAdvances: true },
           { ah: 2, aa: 2, homeAdvances: true }
         )
-      ).toBe(5);
+      ).toBe(7);
     });
 
     it("returns 3 when the advancer is right but the manner is wrong (said decisive, went to pens)", () => {
@@ -110,6 +110,17 @@ describe("knockoutMatchPoints", () => {
     const looseButRight = knockoutMatchPoints({ ph: 2, pa: 1 }, { ah: 1, aa: 0 });
     expect(exact).toBe(10);
     expect(looseButRight).toBe(5);
+  });
+
+  it("rewards a correctly-called tie (right pens winner) above a loose decisive pick", () => {
+    const tieWrongScore = knockoutMatchPoints(
+      { ph: 1, pa: 1, homeAdvances: true },
+      { ah: 2, aa: 2, homeAdvances: true }
+    );
+    const decisiveWrongScore = knockoutMatchPoints({ ph: 3, pa: 1 }, { ah: 2, aa: 0 });
+    expect(tieWrongScore).toBe(7);
+    expect(decisiveWrongScore).toBe(5);
+    expect(tieWrongScore).toBeGreaterThan(decisiveWrongScore);
   });
 
   // The scenario from the design discussion: actual is "1–1, home wins on pens".

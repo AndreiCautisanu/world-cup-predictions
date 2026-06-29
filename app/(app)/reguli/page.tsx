@@ -76,6 +76,9 @@ export default function ReguliPage() {
         </p>
         <TierTable rows={KO_TIERS} />
         <Callout>
+          Egalurile sunt mai greu de prins: dacă pronostici un <strong className="text-slate-100">egal</strong> <em>și</em> echipa care merge mai departe la penalty-uri, primești <strong className="text-slate-100">7 puncte</strong> chiar dacă scorul egalului diferă (ai zis 1-1, a fost 2-2). Egalul exact rămâne 10.
+        </Callout>
+        <Callout>
           Consolare: dacă mizezi pe egal → penalty-uri și chiar acolo se ajunge, primești <strong className="text-slate-100">3 puncte</strong> chiar dacă echipa ta pierde loteria penalty-urilor — ai citit corect că meciul se duce la penalty-uri. A ghici cine se califică nu poate fi însă niciodată depășit de cine greșește echipa calificată.
         </Callout>
         <Callout>

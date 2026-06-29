@@ -58,10 +58,11 @@ export const MATCH_TIER_LABEL: Record<MatchTier, string> = {
   perfect: "Perfect!",
 };
 
-// KO matches reuse the "exact" visual tier for "one team's goals right" (7pts),
-// which is NOT a full exact score (that's perfect/10) — so override its label.
+// KO matches reuse the "exact" visual tier for the 7-point band — one team's
+// goals right, or a correctly-called tie → penalties with the wrong tie score.
+// Neither is a full exact score (that's perfect/10), so override the label.
 const KO_TIER_LABEL: Partial<Record<MatchTier, string>> = {
-  exact: "Un scor corect",
+  exact: "Foarte aproape",
 };
 
 export function matchTierLabel(tier: MatchTier, round?: string): string {

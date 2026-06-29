@@ -60,8 +60,8 @@ describe("matchTierLabel", () => {
     expect(matchTierLabel("exact", "GROUP_1")).toBe("Scor exact");
   });
 
-  it("relabels the exact tier in a knockout match (it means one team's goals, not a full score)", () => {
-    expect(matchTierLabel("exact", "R16")).toBe("Un scor corect");
+  it("relabels the exact tier in a knockout match (the 7-band is not a full exact score)", () => {
+    expect(matchTierLabel("exact", "R16")).toBe("Foarte aproape");
     expect(matchTierLabel("exact", "R16")).not.toBe("Scor exact");
   });
 

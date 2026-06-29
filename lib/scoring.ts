@@ -48,18 +48,18 @@ export function groupMatchPoints(pred: MatchScore, actual: MatchResult): number 
 // official 120-minute record: who advances, and the manner (decided in
 // regulation/ET vs. drawn → penalties).
 //
-//   Right advancer + exact scoreline ....................... 10
-//   Right advancer + right manner + one team's goals exact .. 7
-//   Right advancer + right manner, scoreline off ............ 5
-//   Right advancer, wrong manner ............................ 3
-//   Wrong advancer, but correctly called a draw→pens ........ 3   (saw the shootout)
-//   Otherwise ............................................... 0
+//   Right advancer + exact scoreline ......................... 10
+//   Right advancer + correctly-called draw → penalties ........ 7   (score off; right shootout winner implied)
+//   Right advancer + decisive, one team's goals exact ......... 7
+//   Right advancer + decisive, scoreline off .................. 5
+//   Right advancer, wrong manner .............................. 3
+//   Wrong advancer, but correctly called a draw→pens .......... 3   (saw the shootout)
+//   Otherwise ................................................. 0
 //
-// Nailing the exact score (10) is worth double a right-team-right-manner-but-
-// wrong-score pick (5). Two invariants hold: a wrong-advancer pick can tie but
-// never beat a right-advancer one (both cap at 3), and for a drawn result the
-// one-team tier is unreachable (both scores are equal, so one side exact means
-// the whole draw is exact) — penalty draws score 5 or 10.
+// Calling a draw → penalties (and the right side through) is hard, so it floors
+// at 7 even when the draw scoreline is wrong — predicting a tie is rewarded more
+// than a loose decisive pick. The invariant still holds: a wrong-advancer pick
+// can tie but never beat a right-advancer one (both cap at 3).
 export function knockoutMatchPoints(
   pred: KnockoutPrediction,
   actual: KnockoutResult
@@ -76,7 +76,10 @@ export function knockoutMatchPoints(
     // the user called the manner correctly.
     if (predDraw !== actualDraw) return 3;
     if (pred.ph === actual.ah && pred.pa === actual.aa) return 10; // exact score
-    if (pred.ph === actual.ah || pred.pa === actual.aa) return 7; // one team's goals
+    // A correctly-called draw → penalties (with the right side advancing, which
+    // rightAdvancer already guarantees) floors at 7 even with the wrong tie score.
+    if (actualDraw) return 7;
+    if (pred.ph === actual.ah || pred.pa === actual.aa) return 7; // decisive, one team's goals
     return 5;
   }
 
