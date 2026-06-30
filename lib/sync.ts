@@ -8,6 +8,39 @@ export type SyncResult = {
   skipped: { id: number; reason: string }[];
 };
 
+type NullableScoreLine = { home: number | null; away: number | null };
+type ScoreLine = { home: number; away: number };
+
+function hasScoreLine(score: NullableScoreLine | undefined): score is ScoreLine {
+  return (
+    score?.home !== null &&
+    score?.home !== undefined &&
+    score.away !== null &&
+    score.away !== undefined
+  );
+}
+
+function matchPlayScore(score: FdMatch["score"]): ScoreLine | null {
+  if (score.duration === "PENALTY_SHOOTOUT") {
+    if (hasScoreLine(score.regularTime)) {
+      return {
+        home: score.regularTime.home + (score.extraTime?.home ?? 0),
+        away: score.regularTime.away + (score.extraTime?.away ?? 0),
+      };
+    }
+
+    if (hasScoreLine(score.fullTime) && hasScoreLine(score.penalties)) {
+      return {
+        home: score.fullTime.home - score.penalties.home,
+        away: score.fullTime.away - score.penalties.away,
+      };
+    }
+  }
+
+  if (!hasScoreLine(score.fullTime)) return null;
+  return score.fullTime;
+}
+
 /**
  * Core sync logic — shared between the cron endpoint and the test script.
  * Accepts an array of FdMatches (real or fake) and a Prisma client,
@@ -23,12 +56,12 @@ export async function processFdMatches(
 
   for (const fd of fdMatches) {
     if (fd.status !== "FINISHED") continue;
-    const home = fd.score.fullTime.home;
-    const away = fd.score.fullTime.away;
-    if (home === null || away === null) {
-      skipped.push({ id: fd.id, reason: "no full-time score" });
+    const score = matchPlayScore(fd.score);
+    if (!score) {
+      skipped.push({ id: fd.id, reason: "no match-play score" });
       continue;
     }
+    const { home, away } = score;
 
     let match = await prisma.match.findUnique({
       where: { externalId: fd.id.toString() },
@@ -65,9 +98,9 @@ export async function processFdMatches(
 
     // Knockout matches: record who progressed. football-data's `winner` already
     // reflects the shootout outcome for a draw decided on penalties, so it is the
-    // source of truth even though fullTime stays level. (Group games never set
-    // this — a draw is just a draw.) `fullTime` carries the official 120-minute
-    // scoreline, which we keep verbatim, draws included.
+    // source of truth for the advancer. For shootouts, football-data `fullTime`
+    // can include the penalty tally, so `matchPlayScore` derives the score after
+    // 120 minutes and keeps draws as draws.
     const isKnockout = !["GROUP_1", "GROUP_2", "GROUP_3"].includes(match.round);
     const homeAdvanced = !isKnockout
       ? null
