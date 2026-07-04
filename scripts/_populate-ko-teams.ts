@@ -65,6 +65,9 @@ const MANUAL_MATCHUPS: { externalId: string; home: string; away: string }[] = [
   { externalId: "537428", home: "AUS", away: "EGY" }, // Australia – Egipt
   { externalId: "537427", home: "ARG", away: "CPV" }, // Argentina – Capul Verde
   { externalId: "537430", home: "COL", away: "GHA" }, // Columbia – Ghana
+  { externalId: "537379", home: "POR", away: "ESP" }, // Portugalia – Spania
+  { externalId: "537381", home: "ARG", away: "EGY" }, // Argentina – Egipt
+  { externalId: "537382", home: "SUI", away: "COL" }, // Elveția – Columbia
 ];
 
 const KICKOFF_FMT = new Intl.DateTimeFormat("ro-RO", {
