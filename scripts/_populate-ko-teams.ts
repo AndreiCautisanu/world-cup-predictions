@@ -25,6 +25,7 @@ import { PrismaClient, Round } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { fetchWorldCupMatches, type FdStage } from "../lib/football-api";
 import { MANUAL_MATCHUPS } from "../prisma/data/knockout-manual-matchups";
+import { loadFootballDataMatchesForKoFill } from "./ko-fill-source";
 
 // Prefer the public proxy host: under `railway run` DATABASE_URL resolves to the
 // internal postgres.railway.internal address, which is only reachable from
@@ -75,8 +76,7 @@ async function list() {
 }
 
 async function fill() {
-  console.log("📡 Fetching WC2026 fixtures from football-data.org…");
-  const fdMatches = await fetchWorldCupMatches();
+  const fdMatches = await loadFootballDataMatchesForKoFill(fetchWorldCupMatches);
 
   const teamByTla = new Map(
     (await prisma.team.findMany()).map((t) => [t.fifaCode, t.id])
