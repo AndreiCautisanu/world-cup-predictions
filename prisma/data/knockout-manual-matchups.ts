@@ -25,8 +25,9 @@ export const MANUAL_MATCHUPS: { externalId: string; home: string; away: string }
   { externalId: "537381", home: "ARG", away: "EGY" }, // Argentina - Egipt
   { externalId: "537382", home: "SUI", away: "COL" }, // Elvetia - Columbia
 
-  // QF known matchups as of 8 Jul 2026. 537386 is still TBD.
+  // QF matchups.
   { externalId: "537383", home: "FRA", away: "MAR" }, // Franta - Maroc
   { externalId: "537384", home: "ESP", away: "BEL" }, // Spania - Belgia
   { externalId: "537385", home: "NOR", away: "ENG" }, // Norvegia - Anglia
+  { externalId: "537386", home: "ARG", away: "SUI" }, // Argentina - Elvetia
 ];
