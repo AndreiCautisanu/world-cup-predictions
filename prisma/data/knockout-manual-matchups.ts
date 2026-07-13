@@ -30,4 +30,8 @@ export const MANUAL_MATCHUPS: { externalId: string; home: string; away: string }
   { externalId: "537384", home: "ESP", away: "BEL" }, // Spania - Belgia
   { externalId: "537385", home: "NOR", away: "ENG" }, // Norvegia - Anglia
   { externalId: "537386", home: "ARG", away: "SUI" }, // Argentina - Elvetia
+
+  // SF matchups.
+  { externalId: "537387", home: "FRA", away: "ESP" }, // Franta - Spania
+  { externalId: "537388", home: "ENG", away: "ARG" }, // Anglia - Argentina
 ];

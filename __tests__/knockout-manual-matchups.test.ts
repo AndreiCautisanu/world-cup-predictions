@@ -11,4 +11,13 @@ describe("manual knockout matchups", () => {
       ])
     );
   });
+
+  it("includes the known semifinal fixtures", () => {
+    expect(MANUAL_MATCHUPS).toEqual(
+      expect.arrayContaining([
+        { externalId: "537387", home: "FRA", away: "ESP" },
+        { externalId: "537388", home: "ENG", away: "ARG" },
+      ])
+    );
+  });
 });
