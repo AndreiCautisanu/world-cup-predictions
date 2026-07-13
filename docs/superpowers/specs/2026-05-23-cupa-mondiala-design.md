@@ -34,7 +34,7 @@ A private, invite-only web app where a group of friends submit predictions for W
 
 ### Login
 - Username + password via NextAuth Credentials provider
-- DB-backed sessions (not JWT) — easier to invalidate if needed
+- JWT sessions (NextAuth v5 default), 7-day expiry — admin password resets propagate within a week. The legacy `Account`/`Session`/`VerificationToken` tables from an earlier DB-session design have been removed (see migration `2_drop_unused_auth_tables`).
 - Secure, httpOnly, SameSite=Lax session cookie
 
 ### Middleware
@@ -85,7 +85,7 @@ A private, invite-only web app where a group of friends submit predictions for W
 |---|---|
 | Wrong result (W/D/L) | 0 |
 | Correct result only | 2 |
-| Correct result + one team's goals right | 5 |
+| Correct result + one team's goals right | 4 |
 | Exact score | 7 |
 
 **Formula:**
@@ -94,7 +94,7 @@ predicted_result = sign(predicted_home - predicted_away)
 actual_result    = sign(actual_home - actual_away)
 if predicted_result ≠ actual_result → 0
 if exact score → 7
-if one team's goals correct → 5
+if one team's goals correct → 4
 else → 2
 ```
 

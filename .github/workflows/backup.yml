@@ -1,0 +1,51 @@
+name: Backup snapshot
+
+# Pings the app's snapshot endpoint on a schedule. The app builds a JSON dump
+# of all user + prediction data and pushes it to the private backup repo
+# (BACKUP_GITHUB_* env vars on Railway). The push is idempotent — it only
+# commits when the data actually changed — so running often is cheap.
+#
+# Required GitHub Actions secret (Settings -> Secrets and variables -> Actions):
+#   CRON_SECRET — same value as the CRON_SECRET env var on Railway.
+#
+# Optional repository variable (Settings -> Secrets and variables -> Actions -> Variables):
+#   APP_URL — defaults to https://cupamondiala.andrei42.com if unset.
+
+on:
+  schedule:
+    # Every 15 minutes. GitHub may delay scheduled runs under load; backups
+    # are idempotent so an occasional late run is harmless.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {} # manual "Run workflow" button
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger snapshot
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://cupamondiala.andrei42.com' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret is not set in this repository."
+            exit 1
+          fi
+          echo "POST $APP_URL/api/admin/snapshot"
+          response=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/admin/snapshot")
+          body=$(echo "$response" | head -n -1)
+          code=$(echo "$response" | tail -n 1)
+          echo "HTTP $code"
+          echo "$body"
+          # The endpoint returns 200 even on a push failure (so the cron
+          # doesn't spam-retry); surface ok:false as a workflow failure.
+          if [ "$code" != "200" ]; then
+            echo "::error::Unexpected HTTP $code"
+            exit 1
+          fi
+          if echo "$body" | grep -q '"ok":false'; then
+            echo "::error::Snapshot endpoint reported failure"
+            exit 1
+          fi

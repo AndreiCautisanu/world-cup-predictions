@@ -1,0 +1,351 @@
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MatchCard } from "@/components/MatchCard";
+
+const kickoff = new Date("2026-06-12T18:00:00Z");
+
+const baseProps = {
+  matchId: 42,
+  kickoffTime: kickoff,
+  slotDescription: null as string | null,
+  groupName: "A" as string | null,
+  round: "GROUP_1",
+  initialHome: null as number | null,
+  initialAway: null as number | null,
+  initialHomeAdvances: null as boolean | null,
+  pointsAwarded: null as number | null,
+  isLocked: false,
+};
+
+const italy = { name: "Italia", flagEmoji: "🇮🇹" };
+const brazil = { name: "Brazilia", flagEmoji: "🇧🇷" };
+
+describe("MatchCard", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-06-12T14:00:00Z"));
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it("renders the placeholder when either team is null", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        homeTeam={null}
+        awayTeam={null}
+        round="R32"
+        groupName={null}
+        slotDescription="Câștigător Grupa A"
+      />
+    );
+    expect(screen.getByText(/echipe necunoscute/i)).toBeInTheDocument();
+  });
+
+  it("renders team names and score inputs for a group match", () => {
+    render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
+    expect(screen.getByText(/italia/i)).toBeInTheDocument();
+    expect(screen.getByText(/brazilia/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
+  });
+
+  it("does not show the advancer picker for a group match (even a 0-0 draw)", () => {
+    render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
+    expect(screen.queryByText(/cine merge mai departe/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the advancer picker for a knockout draw when unlocked", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="QF"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+      />
+    );
+    // default 0-0 is a draw → the user must pick who advances on penalties
+    expect(screen.getByText(/cine merge mai departe/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /italia/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /brazilia/i })).toBeInTheDocument();
+  });
+
+  it("hides the advancer picker once the knockout score is decisive", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="QF"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+        initialHome={2}
+        initialAway={1}
+      />
+    );
+    expect(screen.queryByText(/cine merge mai departe/i)).not.toBeInTheDocument();
+  });
+
+  it("blocks saving a knockout draw until an advancer is chosen", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="QF"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+      />
+    );
+    // 0-0 draw, no advancer picked yet → save disabled, hint shown
+    expect(screen.getByText(/alege cine avansează/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /salv/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /italia/i }));
+    expect(screen.getByRole("button", { name: /salv/i })).not.toBeDisabled();
+  });
+
+  it("disables score inputs and hides the save button when locked", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        homeTeam={italy}
+        awayTeam={brazil}
+        isLocked={true}
+      />
+    );
+    const inputs = screen.getAllByRole("textbox");
+    inputs.forEach((i) => expect(i).toBeDisabled());
+    expect(screen.queryByRole("button", { name: /salv/i })).not.toBeInTheDocument();
+  });
+
+  it("shows the actual result next to the points badge when scored", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        homeTeam={italy}
+        awayTeam={brazil}
+        isLocked
+        initialHome={0}
+        initialAway={0}
+        pointsAwarded={0}
+        actualHome={2}
+        actualAway={1}
+      />
+    );
+    expect(screen.getByText(/rezultat/i)).toBeInTheDocument();
+    expect(screen.getByText(/2\s*–\s*1/)).toBeInTheDocument();
+    expect(screen.getByText(/ratat/i)).toBeInTheDocument();
+  });
+
+  it("marks a knockout result that went to penalties", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="R16"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+        isLocked
+        initialHome={1}
+        initialAway={1}
+        pointsAwarded={4}
+        actualHome={1}
+        actualAway={1}
+        wentToPens
+      />
+    );
+    expect(screen.getByText(/\(pen\)/i)).toBeInTheDocument();
+  });
+
+  it("labels the button 'Salvează' when never saved", () => {
+    render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
+    expect(screen.getByRole("button", { name: /^salvează$/i })).toBeInTheDocument();
+  });
+
+  it("labels the button 'Actualizează' when initial value exists and user edits", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        homeTeam={italy}
+        awayTeam={brazil}
+        initialHome={2}
+        initialAway={1}
+      />
+    );
+    // Has initial → before user edits, no diff to save → button should be "Salvat" indicator (disabled or muted)
+    const [homeInput] = screen.getAllByRole("textbox");
+    fireEvent.change(homeInput, { target: { value: "3" } });
+    expect(screen.getByRole("button", { name: /actualizează/i })).toBeInTheDocument();
+  });
+
+  it("selects the input text on focus so typing replaces it", () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        homeTeam={italy}
+        awayTeam={brazil}
+        initialHome={2}
+        initialAway={1}
+      />
+    );
+    const [homeInput] = screen.getAllByRole("textbox") as HTMLInputElement[];
+    const selectSpy = jest.spyOn(homeInput, "select");
+    fireEvent.focus(homeInput);
+    expect(selectSpy).toHaveBeenCalled();
+  });
+
+  it("posts the prediction to /api/predictions/match on save", async () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        homeTeam={italy}
+        awayTeam={brazil}
+        initialHome={2}
+        initialAway={1}
+      />
+    );
+    // Need to dirty the card first since clean-saved cards have no diff to save
+    const [homeInput] = screen.getAllByRole("textbox");
+    fireEvent.change(homeInput, { target: { value: "3" } });
+    const saveButton = screen.getByRole("button", { name: /actualizează/i });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/predictions/match",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            matchId: 42,
+            homeScore: 3,
+            awayScore: 1,
+          }),
+        })
+      );
+    });
+  });
+
+  it("dispatches isDirty=false after a successful save", async () => {
+    const events: boolean[] = [];
+    const handler = (e: Event) => {
+      const { matchId, isDirty } = (e as CustomEvent<{ matchId: number; isDirty: boolean }>).detail;
+      if (matchId === 42) events.push(isDirty);
+    };
+    window.addEventListener("pronosticuri:dirty", handler);
+    try {
+      render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
+      const [homeInput] = screen.getAllByRole("textbox");
+      fireEvent.change(homeInput, { target: { value: "3" } });
+      // Wait one microtask cycle so the dirty-event from typing flushes
+      await Promise.resolve();
+      expect(events.at(-1)).toBe(true);
+      const saveButton = screen.getByRole("button", { name: /^salvează$/i });
+      fireEvent.click(saveButton);
+      await waitFor(() => expect(events.at(-1)).toBe(false));
+    } finally {
+      window.removeEventListener("pronosticuri:dirty", handler);
+    }
+  });
+
+  it("keeps the button as 'Salvat ✓' (not 'Salvează') indefinitely after saving a new prediction", async () => {
+    jest.useRealTimers(); // real timers so the 2.5s "saved" flash actually elapses
+    render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} />);
+    const [homeInput] = screen.getAllByRole("textbox");
+    fireEvent.change(homeInput, { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /^salvează$/i }));
+    // Wait past the 2.5s status auto-reset; button must remain in a "saved" state
+    await new Promise((r) => setTimeout(r, 2700));
+    expect(screen.queryByRole("button", { name: /^salvează$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /salvat/i })).toBeInTheDocument();
+  });
+
+  it("shows the 'see others' button when locked and opens the board", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        match: {
+          id: 42,
+          round: "GROUP_1",
+          status: "FINISHED",
+          homeTeam: italy,
+          awayTeam: brazil,
+          final: false,
+          homeScore: null,
+          awayScore: null,
+          wentToPens: null,
+          homeAdvanced: null,
+        },
+        participants: [],
+      }),
+    });
+
+    render(<MatchCard {...baseProps} homeTeam={italy} awayTeam={brazil} isLocked />);
+
+    const btn = screen.getByRole("button", { name: /vezi ce-au pus ceilal/i });
+    fireEvent.click(btn);
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith("/api/matches/42/predictions")
+    );
+  });
+
+  it("includes homeAdvances in the save body for a knockout draw pick", async () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="FINAL"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+        initialHome={1}
+        initialAway={1}
+        initialHomeAdvances={true}
+      />
+    );
+    // Already a 1-1 draw with home backed. Flip the advancer to away (Brazilia).
+    fireEvent.click(screen.getByRole("button", { name: /brazilia/i }));
+    const saveButton = screen.getByRole("button", { name: /actualizează/i });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/predictions/match",
+        expect.objectContaining({
+          body: JSON.stringify({
+            matchId: 42,
+            homeScore: 1,
+            awayScore: 1,
+            homeAdvances: false,
+          }),
+        })
+      );
+    });
+  });
+
+  it("omits homeAdvances from the save body for a decisive knockout pick", async () => {
+    render(
+      <MatchCard
+        {...baseProps}
+        round="FINAL"
+        groupName={null}
+        homeTeam={italy}
+        awayTeam={brazil}
+        initialHome={2}
+        initialAway={0}
+      />
+    );
+    const [homeInput] = screen.getAllByRole("textbox");
+    fireEvent.change(homeInput, { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /actualizează/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/predictions/match",
+        expect.objectContaining({
+          body: JSON.stringify({ matchId: 42, homeScore: 3, awayScore: 0 }),
+        })
+      );
+    });
+  });
+});

@@ -1,0 +1,54 @@
+name: Sync match results (fallback)
+
+# FALLBACK ONLY — the primary sync is handled by an in-process scheduler
+# (instrumentation.ts + lib/sync-scheduler.ts) that polls every 2 minutes
+# during active match windows directly from the Railway server process.
+#
+# This workflow is a safety net for the case where the server restarts
+# mid-match and the in-process scheduler misses a window.  30-minute
+# intervals are infrequent enough for GitHub's scheduler to pick up
+# reliably.  The endpoint no-ops (single DB count, no upstream request)
+# when no match is in its active window.
+#
+# Required GitHub Actions secret (Settings → Secrets and variables → Actions):
+#   CRON_SECRET — same value as the CRON_SECRET env var on Railway.
+#
+# Optional repository variable:
+#   APP_URL — defaults to https://cupamondiala.andrei42.com if unset.
+
+on:
+  schedule:
+    # Every 30 min during match hours (15:00–01:59 UTC), June–July.
+    - cron: "*/30 15-23 * 6-7 *"
+    - cron: "*/30 0-1 * 6-7 *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync results
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://cupamondiala.andrei42.com' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret is not set in this repository."
+            exit 1
+          fi
+          echo "POST $APP_URL/api/admin/sync-results"
+          response=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/admin/sync-results")
+          body=$(echo "$response" | head -n -1)
+          code=$(echo "$response" | tail -n 1)
+          echo "HTTP $code"
+          echo "$body"
+          if [ "$code" != "200" ]; then
+            echo "::error::Unexpected HTTP $code"
+            exit 1
+          fi
+          if echo "$body" | grep -q '"ok":false'; then
+            echo "::error::Sync endpoint reported failure"
+            exit 1
+          fi
