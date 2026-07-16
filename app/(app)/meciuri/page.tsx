@@ -263,5 +263,5 @@ function StatusPill({ status }: { status: "FINISHED" | "LIVE" | "LOCKED" | "SCHE
 }
 
 function roundLabel(round: Round): string {
-  return TABS.find((t) => t.key === round)?.label ?? round;
+  return MATCH_ROUND_TABS.find((t) => t.rounds.includes(round))?.label ?? round;
 }
