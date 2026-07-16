@@ -126,7 +126,7 @@ describe("BonusForm", () => {
     expect(screen.getByRole("button", { name: /finalist/i })).toHaveTextContent(/Senegal/);
     expect(
       (screen.getByLabelText(/golgheter/i) as HTMLInputElement).value
-    ).toBe("Mbappe");
+    ).toBe("Kylian Mbappe");
     expect(screen.getByRole("button", { name: /surpriza/i })).toHaveTextContent(/Norvegia/);
   });
 

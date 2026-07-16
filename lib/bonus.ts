@@ -9,8 +9,19 @@ export type BonusTeamShape = { id: number; pot: number };
 
 export type ValidateResult = { ok: true } | { ok: false; error: string };
 
+const TOP_SCORER_ALIASES: Record<string, string> = {
+  alvarez: "Julian Alvarez",
+  haaland: "Erling Haaland",
+  "kylian mbappe": "Kylian Mbappe",
+  "lionel messi": "Lionel Messi",
+  mbappe: "Kylian Mbappe",
+  mbaope: "Kylian Mbappe",
+  messi: "Lionel Messi",
+  "viorel messi": "Lionel Messi",
+};
+
 export function normalizeTopScorerName(value: string): string {
-  return value
+  const normalized = value
     .normalize("NFKD")
     .replace(/\p{Diacritic}/gu, "")
     .replace(/[’‘`´]/g, "'")
@@ -22,6 +33,7 @@ export function normalizeTopScorerName(value: string): string {
     .filter(Boolean)
     .map(titleCaseNameToken)
     .join(" ");
+  return TOP_SCORER_ALIASES[normalized.toLocaleLowerCase("ro-RO")] ?? normalized;
 }
 
 function titleCaseNameToken(token: string): string {
