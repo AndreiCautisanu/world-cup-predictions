@@ -21,6 +21,15 @@ describe("normalizeTopScorerName", () => {
     expect(normalizeTopScorerName("OUSMANE–Dembélé")).toBe("Ousmane-Dembele");
     expect(normalizeTopScorerName("  lamine   yamal!!! ")).toBe("Lamine Yamal");
   });
+
+  it("maps known top-scorer aliases to first-name last-name values", () => {
+    expect(normalizeTopScorerName("Mbappe")).toBe("Kylian Mbappe");
+    expect(normalizeTopScorerName("Mbaope")).toBe("Kylian Mbappe");
+    expect(normalizeTopScorerName("Haaland")).toBe("Erling Haaland");
+    expect(normalizeTopScorerName("Alvarez")).toBe("Julian Alvarez");
+    expect(normalizeTopScorerName("Messi")).toBe("Lionel Messi");
+    expect(normalizeTopScorerName("Viorel Messi")).toBe("Lionel Messi");
+  });
 });
 
 describe("validateBonusSelection", () => {
