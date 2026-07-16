@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { normalizeTopScorerName } from "@/lib/bonus";
 import { FlagImage } from "./FlagImage";
 
 type Team = { id: number; name: string; flagEmoji: string; pot: number };
@@ -89,7 +90,7 @@ export function BonusForm({ allTeams, initial, locked }: Props) {
     initial.runnerUpTeamId
   );
   const [topScorerName, setTopScorerName] = useState<string>(
-    initial.topScorerName ?? ""
+    normalizeTopScorerName(initial.topScorerName ?? "")
   );
   const [darkHorseTeamId, setDarkHorseTeamId] = useState<number | null>(
     initial.darkHorseTeamId
@@ -98,28 +99,31 @@ export function BonusForm({ allTeams, initial, locked }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
-  const [lastSaved, setLastSaved] = useState<Initial>(initial);
+  const [lastSaved, setLastSaved] = useState<Initial>({
+    ...initial,
+    topScorerName: normalizeTopScorerName(initial.topScorerName ?? ""),
+  });
 
-  const trimmedTopScorer = topScorerName.trim();
+  const normalizedTopScorer = normalizeTopScorerName(topScorerName);
   const championRunnerUpSame =
     championTeamId !== null && championTeamId === runnerUpTeamId;
   const missingField =
     championTeamId === null ||
     runnerUpTeamId === null ||
     darkHorseTeamId === null ||
-    trimmedTopScorer.length < 2;
+    normalizedTopScorer.length < 2;
 
   const isDirty =
     championTeamId !== lastSaved.championTeamId ||
     runnerUpTeamId !== lastSaved.runnerUpTeamId ||
     darkHorseTeamId !== lastSaved.darkHorseTeamId ||
-    trimmedTopScorer !== (lastSaved.topScorerName ?? "").trim();
+    normalizedTopScorer !== normalizeTopScorerName(lastSaved.topScorerName ?? "");
 
   const everSaved =
     lastSaved.championTeamId !== null &&
     lastSaved.runnerUpTeamId !== null &&
     lastSaved.darkHorseTeamId !== null &&
-    (lastSaved.topScorerName ?? "").trim().length >= 2;
+    normalizeTopScorerName(lastSaved.topScorerName ?? "").length >= 2;
 
   const canSave =
     !locked &&
@@ -147,7 +151,7 @@ export function BonusForm({ allTeams, initial, locked }: Props) {
         body: JSON.stringify({
           championTeamId,
           runnerUpTeamId,
-          topScorerName: trimmedTopScorer,
+          topScorerName: normalizedTopScorer,
           darkHorseTeamId,
         }),
       });
@@ -160,7 +164,7 @@ export function BonusForm({ allTeams, initial, locked }: Props) {
       setLastSaved({
         championTeamId,
         runnerUpTeamId,
-        topScorerName: trimmedTopScorer,
+        topScorerName: normalizedTopScorer,
         darkHorseTeamId,
       });
       setStatus("saved");
@@ -175,7 +179,7 @@ export function BonusForm({ allTeams, initial, locked }: Props) {
     championTeamId,
     runnerUpTeamId,
     darkHorseTeamId,
-    trimmedTopScorer,
+    normalizedTopScorer,
   ]);
 
   const championTeam = allTeams.find((t) => t.id === championTeamId) ?? null;
