@@ -1,3 +1,3 @@
-import type { Round } from "@prisma/client";
+import type { MatchRoundTabKey } from "@/lib/match-round-tabs";
 
-export const DEFAULT_MATCH_ROUND: Round = "SF";
+export const DEFAULT_MATCH_TAB: MatchRoundTabKey = "FINALS";

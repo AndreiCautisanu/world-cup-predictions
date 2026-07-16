@@ -34,4 +34,8 @@ export const MANUAL_MATCHUPS: { externalId: string; home: string; away: string }
   // SF matchups.
   { externalId: "537387", home: "FRA", away: "ESP" }, // Franta - Spania
   { externalId: "537388", home: "ENG", away: "ARG" }, // Anglia - Argentina
+
+  // Final-stage matchups.
+  { externalId: "537389", home: "FRA", away: "ENG" }, // Franta - Anglia
+  { externalId: "537390", home: "ESP", away: "ARG" }, // Spania - Argentina
 ];

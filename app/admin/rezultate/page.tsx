@@ -1,24 +1,12 @@
 import Link from "next/link";
-import type { Round } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
+import {
+  MATCH_ROUND_TABS,
+  matchRoundTabFromParam,
+  roundsForMatchRoundTab,
+} from "@/lib/match-round-tabs";
+import { DEFAULT_MATCH_TAB } from "@/lib/round-defaults";
 import { AdminResultRow } from "./AdminResultRow";
-
-const TABS: { key: Round; label: string; sub: string }[] = [
-  { key: "GROUP_1", label: "Etapa 1", sub: "Grupe" },
-  { key: "GROUP_2", label: "Etapa 2", sub: "Grupe" },
-  { key: "GROUP_3", label: "Etapa 3", sub: "Grupe" },
-  { key: "R32", label: "Șaisprezecimi", sub: "32" },
-  { key: "R16", label: "Optimi", sub: "16" },
-  { key: "QF", label: "Sferturi", sub: "8" },
-  { key: "SF", label: "Semifinale", sub: "4" },
-  { key: "THIRD_PLACE", label: "Locul 3", sub: "1" },
-  { key: "FINAL", label: "Finala", sub: "1" },
-];
-
-function isRound(value: string | undefined): value is Round {
-  return !!value && TABS.some((t) => t.key === value);
-}
 
 export default async function AdminRezultate({
   searchParams,
@@ -26,11 +14,12 @@ export default async function AdminRezultate({
   searchParams: Promise<{ round?: string }>;
 }) {
   const params = await searchParams;
-  const round: Round = isRound(params.round) ? params.round : DEFAULT_MATCH_ROUND;
-  const activeTab = TABS.find((t) => t.key === round)!;
+  const matchTab = params.round ? matchRoundTabFromParam(params.round) : DEFAULT_MATCH_TAB;
+  const rounds = roundsForMatchRoundTab(matchTab);
+  const activeTab = MATCH_ROUND_TABS.find((t) => t.key === matchTab)!;
 
   const matches = await prisma.match.findMany({
-    where: { round },
+    where: { round: { in: rounds } },
     include: { homeTeam: true, awayTeam: true, group: true },
     orderBy: { kickoffTime: "asc" },
   });
@@ -66,8 +55,8 @@ export default async function AdminRezultate({
           aria-label="Etapă"
           className="flex gap-2 overflow-x-auto px-4 pb-2 pr-12 [scroll-padding-inline:1rem] [scroll-snap-type:x_proximity] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {TABS.map((t) => {
-            const active = t.key === round;
+          {MATCH_ROUND_TABS.map((t) => {
+            const active = t.key === matchTab;
             return (
               <Link
                 key={t.key}

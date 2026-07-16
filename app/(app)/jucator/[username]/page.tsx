@@ -8,7 +8,12 @@ import { FlagImage } from "@/components/FlagImage";
 import { isMatchLocked, LOCK_OFFSET_MS, tournamentLockTime } from "@/lib/locking";
 import { buildDisplayName, summarizeLeaderboardRows } from "@/lib/leaderboard";
 import { matchPredictionTier, matchTierLabel, type MatchTier } from "@/lib/match-tier";
-import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
+import {
+  MATCH_ROUND_TABS,
+  matchRoundTabFromParam,
+  roundsForMatchRoundTab,
+} from "@/lib/match-round-tabs";
+import { DEFAULT_MATCH_TAB } from "@/lib/round-defaults";
 import { TIER_TILE } from "@/lib/tier-styles";
 
 const TIER_EYEBROW: Record<MatchTier, string> = {
@@ -31,18 +36,6 @@ const TIER_BADGE: Record<MatchTier, string> = {
 
 export const dynamic = "force-dynamic";
 
-const TABS: { key: Round; label: string; sub: string }[] = [
-  { key: "GROUP_1", label: "Etapa 1", sub: "Grupe" },
-  { key: "GROUP_2", label: "Etapa 2", sub: "Grupe" },
-  { key: "GROUP_3", label: "Etapa 3", sub: "Grupe" },
-  { key: "R32", label: "Șaisprezecimi", sub: "32 echipe" },
-  { key: "R16", label: "Optimi", sub: "16 echipe" },
-  { key: "QF", label: "Sferturi", sub: "8 echipe" },
-  { key: "SF", label: "Semifinale", sub: "4 echipe" },
-  { key: "THIRD_PLACE", label: "Locul 3", sub: "1 meci" },
-  { key: "FINAL", label: "Finala", sub: "1 meci" },
-];
-
 const ROUND_LABELS: Record<Round, string> = {
   GROUP_1: "Etapa 1",
   GROUP_2: "Etapa 2",
@@ -64,10 +57,6 @@ const KICKOFF_FMT = new Intl.DateTimeFormat("ro-RO", {
   timeZone: "Europe/Bucharest",
 });
 
-function isRound(value: string | undefined): value is Round {
-  return !!value && TABS.some((t) => t.key === value);
-}
-
 export default async function JucatorPage({
   params,
   searchParams,
@@ -79,7 +68,8 @@ export default async function JucatorPage({
   const username = decodeURIComponent(rawUsername);
 
   const sp = await searchParams;
-  const matchday: Round = isRound(sp.md) ? sp.md : DEFAULT_MATCH_ROUND;
+  const matchTab = sp.md ? matchRoundTabFromParam(sp.md) : DEFAULT_MATCH_TAB;
+  const rounds = roundsForMatchRoundTab(matchTab);
   const section = sp.tab ?? "meciuri";
 
   const meId = getSessionUser(await auth())?.id;
@@ -138,7 +128,7 @@ export default async function JucatorPage({
 
   // All matches for the selected round, ordered by kickoff time.
   const matches = await prisma.match.findMany({
-    where: { round: matchday },
+    where: { round: { in: rounds } },
     include: { homeTeam: true, awayTeam: true, group: true },
     orderBy: { kickoffTime: "asc" },
   });
@@ -148,7 +138,7 @@ export default async function JucatorPage({
     where: {
       userId: user.id,
       match: {
-        round: matchday,
+        round: { in: rounds },
         OR: [{ kickoffTime: { lte: lockCutoff } }, { status: "FINISHED" }],
       },
     },
@@ -233,7 +223,7 @@ export default async function JucatorPage({
         {(["meciuri", "grupe", "bonus"] as const).map((s) => (
           <Link
             key={s}
-            href={`?md=${matchday}&tab=${s}`}
+            href={`?md=${matchTab}&tab=${s}`}
             className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
               section === s
                 ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-200"
@@ -253,8 +243,8 @@ export default async function JucatorPage({
               aria-label="Etapă"
               className="flex gap-2 overflow-x-auto px-4 pb-2 pr-12 [scroll-padding-inline:1rem] [scroll-snap-type:x_proximity] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
-              {TABS.map((t) => {
-                const active = t.key === matchday;
+              {MATCH_ROUND_TABS.map((t) => {
+                const active = t.key === matchTab;
                 return (
                   <Link
                     key={t.key}
