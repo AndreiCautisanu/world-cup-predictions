@@ -9,11 +9,37 @@ export type BonusTeamShape = { id: number; pot: number };
 
 export type ValidateResult = { ok: true } | { ok: false; error: string };
 
+export function normalizeTopScorerName(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[’‘`´]/g, "'")
+    .replace(/[‐‑‒–—―]/g, "-")
+    .replace(/[^\p{L}\p{N}' -]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map(titleCaseNameToken)
+    .join(" ");
+}
+
+function titleCaseNameToken(token: string): string {
+  return token
+    .split(/([ '-])/)
+    .map((part) => {
+      if (part === " " || part === "-" || part === "'") return part;
+      const lower = part.toLocaleLowerCase("ro-RO");
+      return lower ? lower[0].toLocaleUpperCase("ro-RO") + lower.slice(1) : lower;
+    })
+    .join("");
+}
+
 export function validateBonusSelection(
   input: BonusInput,
   teams: BonusTeamShape[]
 ): ValidateResult {
-  if (input.topScorerName.trim().length < 2) {
+  if (normalizeTopScorerName(input.topScorerName).length < 2) {
     return { ok: false, error: "Numele golgheterului e obligatoriu" };
   }
 

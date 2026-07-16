@@ -89,7 +89,7 @@ describe("BonusForm", () => {
     pickTeam(/campion/i, /Argentina/);
     pickTeam(/finalist/i, /Maroc/);
     fireEvent.change(screen.getByLabelText(/golgheter/i), {
-      target: { value: "Lionel Messi" },
+      target: { value: "  lionél   messi!!! " },
     });
     pickTeam(/surpriza/i, /Ecuador/);
     fireEvent.click(screen.getByRole("button", { name: /salv/i }));
@@ -126,7 +126,7 @@ describe("BonusForm", () => {
     expect(screen.getByRole("button", { name: /finalist/i })).toHaveTextContent(/Senegal/);
     expect(
       (screen.getByLabelText(/golgheter/i) as HTMLInputElement).value
-    ).toBe("Mbappé");
+    ).toBe("Mbappe");
     expect(screen.getByRole("button", { name: /surpriza/i })).toHaveTextContent(/Norvegia/);
   });
 

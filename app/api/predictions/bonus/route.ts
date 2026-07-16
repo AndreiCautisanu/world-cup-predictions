@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { isTournamentLocked, tournamentLockTime } from "@/lib/locking";
-import { validateBonusSelection } from "@/lib/bonus";
+import { normalizeTopScorerName, validateBonusSelection } from "@/lib/bonus";
 
 const schema = z.object({
   championTeamId: z.number().int(),
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: validation.error }, { status: 400 });
   }
 
-  const topScorerName = parsed.data.topScorerName.trim();
+  const topScorerName = normalizeTopScorerName(parsed.data.topScorerName);
 
   await prisma.bonusPrediction.upsert({
     where: { userId },

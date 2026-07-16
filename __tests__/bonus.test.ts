@@ -1,4 +1,4 @@
-import { validateBonusSelection } from "@/lib/bonus";
+import { normalizeTopScorerName, validateBonusSelection } from "@/lib/bonus";
 
 type Pot = 1 | 2 | 3 | 4;
 
@@ -14,6 +14,14 @@ const allTeams = [
   team(7, 4),
   team(8, 4),
 ];
+
+describe("normalizeTopScorerName", () => {
+  it("canonicalizes spacing, accents, punctuation, and casing", () => {
+    expect(normalizeTopScorerName("  kylian   mbappé  ")).toBe("Kylian Mbappe");
+    expect(normalizeTopScorerName("OUSMANE–Dembélé")).toBe("Ousmane-Dembele");
+    expect(normalizeTopScorerName("  lamine   yamal!!! ")).toBe("Lamine Yamal");
+  });
+});
 
 describe("validateBonusSelection", () => {
   it("accepts a valid selection (different champion/runner-up, pot-3 dark horse)", () => {
