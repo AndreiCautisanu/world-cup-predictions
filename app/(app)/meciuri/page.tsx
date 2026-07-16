@@ -2,26 +2,15 @@ import Link from "next/link";
 import type { Round } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isMatchLocked } from "@/lib/locking";
-import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
+import {
+  MATCH_ROUND_TABS,
+  matchRoundTabFromParam,
+  roundsForMatchRoundTab,
+} from "@/lib/match-round-tabs";
+import { DEFAULT_MATCH_TAB } from "@/lib/round-defaults";
 import { FlagImage } from "@/components/FlagImage";
 
 export const dynamic = "force-dynamic";
-
-const TABS: { key: Round; label: string; sub: string }[] = [
-  { key: "GROUP_1", label: "Etapa 1", sub: "Grupe" },
-  { key: "GROUP_2", label: "Etapa 2", sub: "Grupe" },
-  { key: "GROUP_3", label: "Etapa 3", sub: "Grupe" },
-  { key: "R32", label: "Șaisprezecimi", sub: "32 echipe" },
-  { key: "R16", label: "Optimi", sub: "16 echipe" },
-  { key: "QF", label: "Sferturi", sub: "8 echipe" },
-  { key: "SF", label: "Semifinale", sub: "4 echipe" },
-  { key: "THIRD_PLACE", label: "Locul 3", sub: "1 meci" },
-  { key: "FINAL", label: "Finala", sub: "1 meci" },
-];
-
-function isRound(value: string | undefined): value is Round {
-  return !!value && TABS.some((t) => t.key === value);
-}
 
 const DAY_FMT = new Intl.DateTimeFormat("ro-RO", {
   weekday: "short",
@@ -40,11 +29,12 @@ export default async function MeciuriPage({
   searchParams: Promise<{ md?: string }>;
 }) {
   const params = await searchParams;
-  const round: Round = isRound(params.md) ? params.md : DEFAULT_MATCH_ROUND;
-  const activeTab = TABS.find((t) => t.key === round)!;
+  const matchTab = params.md ? matchRoundTabFromParam(params.md) : DEFAULT_MATCH_TAB;
+  const rounds = roundsForMatchRoundTab(matchTab);
+  const activeTab = MATCH_ROUND_TABS.find((t) => t.key === matchTab)!;
 
   const matches = await prisma.match.findMany({
-    where: { round },
+    where: { round: { in: rounds } },
     include: { homeTeam: true, awayTeam: true, group: true },
     orderBy: { kickoffTime: "asc" },
   });
@@ -88,8 +78,8 @@ export default async function MeciuriPage({
           aria-label="Etapă"
           className="flex gap-2 overflow-x-auto px-4 pb-2 pr-12 [scroll-padding-inline:1rem] [scroll-snap-type:x_proximity] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {TABS.map((t) => {
-            const active = t.key === round;
+          {MATCH_ROUND_TABS.map((t) => {
+            const active = t.key === matchTab;
             return (
               <Link
                 key={t.key}

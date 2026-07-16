@@ -20,4 +20,13 @@ describe("manual knockout matchups", () => {
       ])
     );
   });
+
+  it("includes the known final-stage fixtures", () => {
+    expect(MANUAL_MATCHUPS).toEqual(
+      expect.arrayContaining([
+        { externalId: "537389", home: "FRA", away: "ENG" },
+        { externalId: "537390", home: "ESP", away: "ARG" },
+      ])
+    );
+  });
 });

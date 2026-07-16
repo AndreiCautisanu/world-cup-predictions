@@ -1,34 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Round } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { matchPredictionTier, matchTierLabel, type MatchTier } from "@/lib/match-tier";
-import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
+import {
+  MATCH_ROUND_TABS,
+  matchRoundTabFromParam,
+  roundsForMatchRoundTab,
+} from "@/lib/match-round-tabs";
+import { DEFAULT_MATCH_TAB } from "@/lib/round-defaults";
 import { FlagImage } from "@/components/FlagImage";
 
 export const dynamic = "force-dynamic";
-
-const TABS: { key: Round; label: string; sub: string }[] = [
-  { key: "GROUP_1", label: "Etapa 1", sub: "Grupe" },
-  { key: "GROUP_2", label: "Etapa 2", sub: "Grupe" },
-  { key: "GROUP_3", label: "Etapa 3", sub: "Grupe" },
-  { key: "R32", label: "Șaisprezecimi", sub: "32 echipe" },
-  { key: "R16", label: "Optimi", sub: "16 echipe" },
-  { key: "QF", label: "Sferturi", sub: "8 echipe" },
-  { key: "SF", label: "Semifinale", sub: "4 echipe" },
-  { key: "THIRD_PLACE", label: "Locul 3", sub: "1 meci" },
-  { key: "FINAL", label: "Finala", sub: "1 meci" },
-];
 
 const ROUND_LABEL: Record<string, string> = {
   GROUP_1: "Etapa 1", GROUP_2: "Etapa 2", GROUP_3: "Etapa 3",
   R32: "Șaisprezecimi", R16: "Optimi", QF: "Sferturi",
   SF: "Semifinale", THIRD_PLACE: "Locul 3", FINAL: "Finala",
 };
-
-function isRound(value: string | undefined): value is Round {
-  return !!value && TABS.some((t) => t.key === value);
-}
 
 const KICKOFF_FORMATTER = new Intl.DateTimeFormat("ro-RO", {
   weekday: "short",
@@ -73,7 +61,8 @@ export default async function AdminUserDetail({
   if (!Number.isInteger(userId) || userId < 1) notFound();
 
   const sp = await searchParams;
-  const matchday: Round = isRound(sp.md) ? sp.md : DEFAULT_MATCH_ROUND;
+  const matchTab = sp.md ? matchRoundTabFromParam(sp.md) : DEFAULT_MATCH_TAB;
+  const rounds = roundsForMatchRoundTab(matchTab);
   const section = sp.tab ?? "meciuri";
 
   const [user, matches] = await Promise.all([
@@ -81,7 +70,7 @@ export default async function AdminUserDetail({
       where: { id: userId },
       include: {
         matchPredictions: {
-          where: { match: { round: matchday } },
+          where: { match: { round: { in: rounds } } },
           include: { match: true },
         },
         groupStandingPredictions: {
@@ -94,7 +83,7 @@ export default async function AdminUserDetail({
       },
     }),
     prisma.match.findMany({
-      where: { round: matchday },
+      where: { round: { in: rounds } },
       include: { homeTeam: true, awayTeam: true, group: true },
       orderBy: { kickoffTime: "asc" },
     }),
@@ -147,7 +136,7 @@ export default async function AdminUserDetail({
         {(["meciuri", "grupe", "bonus"] as const).map((s) => (
           <Link
             key={s}
-            href={`?md=${matchday}&tab=${s}`}
+            href={`?md=${matchTab}&tab=${s}`}
             className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
               section === s
                 ? "border-rose-400/60 bg-rose-500/10 text-rose-200"
@@ -167,8 +156,8 @@ export default async function AdminUserDetail({
               aria-label="Etapă"
               className="flex gap-2 overflow-x-auto px-4 pb-2 pr-12 [scroll-padding-inline:1rem] [scroll-snap-type:x_proximity] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
-              {TABS.map((t) => {
-                const active = t.key === matchday;
+              {MATCH_ROUND_TABS.map((t) => {
+                const active = t.key === matchTab;
                 return (
                   <Link
                     key={t.key}

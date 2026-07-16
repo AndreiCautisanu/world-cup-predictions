@@ -1,7 +1,7 @@
-import { DEFAULT_MATCH_ROUND } from "@/lib/round-defaults";
+import { DEFAULT_MATCH_TAB } from "@/lib/round-defaults";
 
 describe("round defaults", () => {
-  it("defaults match-round tab pages to the semifinals", () => {
-    expect(DEFAULT_MATCH_ROUND).toBe("SF");
+  it("defaults match-round tab pages to the combined finals tab", () => {
+    expect(DEFAULT_MATCH_TAB).toBe("FINALS");
   });
 });
