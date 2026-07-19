@@ -1,4 +1,5 @@
 import { buildDisplayName } from "@/lib/leaderboard";
+import type { PrismaClient } from "@prisma/client";
 
 export type RaceRound =
   | "GROUP_1"
@@ -293,4 +294,63 @@ export function buildLeaderboardRaceTimeline(input: LeaderboardRaceInput): RaceT
     0
   );
   return { snapshots, finalMax };
+}
+
+export async function getLeaderboardRaceTimeline(
+  prisma: PrismaClient
+): Promise<RaceTimeline> {
+  const [users, matches, groupStandingPredictions, bonusPredictions] = await Promise.all([
+    prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+      },
+    }),
+    prisma.match.findMany({
+      where: { status: "FINISHED" },
+      select: {
+        id: true,
+        round: true,
+        kickoffTime: true,
+        groupId: true,
+        homeScore: true,
+        awayScore: true,
+        homeAdvanced: true,
+        homeTeam: { select: { id: true, name: true } },
+        awayTeam: { select: { id: true, name: true } },
+        predictions: { select: { userId: true, pointsAwarded: true } },
+      },
+      orderBy: [{ kickoffTime: "asc" }, { id: "asc" }],
+    }),
+    prisma.groupStandingPrediction.findMany({
+      select: {
+        userId: true,
+        groupId: true,
+        pointsAwarded: true,
+      },
+    }),
+    prisma.bonusPrediction.findMany({
+      select: {
+        userId: true,
+        darkHorseTeamId: true,
+        darkHorsePts: true,
+        championPts: true,
+        runnerUpPts: true,
+        topScorerPts: true,
+      },
+    }),
+  ]);
+
+  return buildLeaderboardRaceTimeline({
+    users,
+    matches: matches.map((match) => ({
+      ...match,
+      round: match.round as RaceRound,
+      kickoffTime: match.kickoffTime.toISOString(),
+    })),
+    groupStandingPredictions,
+    bonusPredictions,
+  });
 }

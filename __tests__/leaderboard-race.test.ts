@@ -1,8 +1,10 @@
 import {
   buildLeaderboardRaceTimeline,
+  getLeaderboardRaceTimeline,
   type LeaderboardRaceInput,
   type RaceSnapshot,
 } from "@/lib/leaderboard-race";
+import { summarizeLeaderboardRows } from "@/lib/leaderboard";
 
 type MatchInput = LeaderboardRaceInput["matches"][number];
 
@@ -258,5 +260,111 @@ describe("buildLeaderboardRaceTimeline", () => {
 
     expect(timeline.snapshots[0].players.map((player) => player.username)).toEqual(["active"]);
     expect(snapshot(timeline, "match-1").players[0].total).toBe(0);
+  });
+
+  it("matches the existing leaderboard total for players active through the Final", () => {
+    const raceInput = input({
+      users: [{ id: 1, username: "ana", firstName: "Ana", lastName: null }],
+      matches: [
+        match({
+          id: 19,
+          kickoffTime: "2026-06-25T18:00:00.000Z",
+          round: "GROUP_3",
+          groupId: 1,
+          predictions: [{ userId: 1, pointsAwarded: 7 }],
+        }),
+        match({
+          id: 20,
+          kickoffTime: "2026-07-19T18:00:00.000Z",
+          round: "FINAL",
+          groupId: null,
+          predictions: [{ userId: 1, pointsAwarded: 10 }],
+        }),
+      ],
+      groupStandingPredictions: [{ userId: 1, groupId: 1, pointsAwarded: 3 }],
+      bonusPredictions: [{
+        userId: 1,
+        darkHorseTeamId: 99,
+        darkHorsePts: 0,
+        championPts: 20,
+        runnerUpPts: 10,
+        topScorerPts: 15,
+      }],
+    });
+    const timeline = buildLeaderboardRaceTimeline(raceInput);
+    const [leaderboardRow] = summarizeLeaderboardRows([{
+      id: 1,
+      username: "ana",
+      firstName: "Ana",
+      lastName: null,
+      matchPredictions: [
+        { pointsAwarded: 7, match: { round: "GROUP_3" } },
+        { pointsAwarded: 10, match: { round: "FINAL" } },
+      ],
+      groupStandingPredictions: [{ pointsAwarded: 3 }],
+      bonusPrediction: {
+        darkHorsePts: 0,
+        championPts: 20,
+        runnerUpPts: 10,
+        topScorerPts: 15,
+      },
+    }]);
+
+    expect(timeline.snapshots.at(-1)?.players[0].total).toBe(leaderboardRow.total);
+  });
+});
+
+describe("getLeaderboardRaceTimeline", () => {
+  it("loads the authoritative race inputs and serializes match dates", async () => {
+    const fakePrisma = {
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 1, username: "ana", firstName: "Ana", lastName: null },
+        ]),
+      },
+      match: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 1,
+            round: "FINAL",
+            kickoffTime: new Date("2026-07-19T18:00:00.000Z"),
+            groupId: null,
+            homeScore: 2,
+            awayScore: 1,
+            homeAdvanced: true,
+            homeTeam: { id: 10, name: "Argentina" },
+            awayTeam: { id: 20, name: "Spania" },
+            predictions: [{ userId: 1, pointsAwarded: 10 }],
+          },
+        ]),
+      },
+      groupStandingPrediction: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      bonusPrediction: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            userId: 1,
+            darkHorseTeamId: 10,
+            darkHorsePts: 30,
+            championPts: 20,
+            runnerUpPts: 0,
+            topScorerPts: 15,
+          },
+        ]),
+      },
+    };
+
+    const timeline = await getLeaderboardRaceTimeline(fakePrisma as never);
+
+    expect(fakePrisma.match.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { status: "FINISHED" },
+      orderBy: [{ kickoffTime: "asc" }, { id: "asc" }],
+    }));
+    expect(timeline.snapshots.at(-1)).toMatchObject({
+      occurredAt: "2026-07-19T18:00:00.000Z",
+      detail: "Argentina 2–1 Spania",
+    });
+    expect(timeline.snapshots.at(-1)?.players[0].total).toBe(75);
   });
 });
