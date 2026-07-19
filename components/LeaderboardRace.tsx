@@ -66,14 +66,12 @@ export function LeaderboardRace({ timeline }: { timeline: RaceTimeline }) {
     const nextFrame = snapshots[frameIndex + 1];
     const delay = reducedMotion ? 240 : nextFrame?.leaderChanged ? 1280 : 760;
     const timeout = window.setTimeout(() => {
-      setFrameIndex((current) => Math.min(current + 1, lastIndex));
+      const nextIndex = Math.min(frameIndex + 1, lastIndex);
+      setFrameIndex(nextIndex);
+      if (nextIndex >= lastIndex) setPlaying(false);
     }, delay);
     return () => window.clearTimeout(timeout);
   }, [frameIndex, lastIndex, playing, reducedMotion, snapshots]);
-
-  useEffect(() => {
-    if (playing && frameIndex >= lastIndex) setPlaying(false);
-  }, [frameIndex, lastIndex, playing]);
 
   const displayedPlayers = useMemo<DisplayedPlayer[]>(() => {
     if (!frame) return [];
@@ -147,12 +145,28 @@ export function LeaderboardRace({ timeline }: { timeline: RaceTimeline }) {
               {frame.detail ?? "Toți pornesc de la zero."}
             </p>
           </div>
-          {winner && (
-            <div className="shrink-0 text-right">
-              <p className="text-[8px] font-bold uppercase tracking-[0.28em] text-amber-300">Câștigător</p>
-              <p className="mt-1 max-w-32 truncate text-sm font-extrabold text-amber-100">{winner.displayName}</p>
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-3">
+            {winner && (
+              <div className="hidden text-right min-[430px]:block">
+                <p className="text-[8px] font-bold uppercase tracking-[0.28em] text-amber-300">Câștigător</p>
+                <p className="mt-1 max-w-28 truncate text-sm font-extrabold text-amber-100">{winner.displayName}</p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={togglePlayback}
+              aria-label={playing ? "Pauză" : isFinal ? "Redă din nou" : "Pornește cursa"}
+              title={playing ? "Pauză" : isFinal ? "Redă din nou" : "Pornește cursa"}
+              className={[
+                "grid h-12 w-12 place-items-center rounded-full border text-base shadow-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
+                isFinal
+                  ? "border-amber-300/50 bg-amber-300 text-amber-950 shadow-amber-300/15 hover:bg-amber-200 focus-visible:ring-amber-200"
+                  : "border-emerald-300/40 bg-emerald-400 text-emerald-950 shadow-emerald-400/15 hover:bg-emerald-300 focus-visible:ring-emerald-200",
+              ].join(" ")}
+            >
+              <span aria-hidden>{playing ? "Ⅱ" : "▶"}</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -255,19 +269,11 @@ export function LeaderboardRace({ timeline }: { timeline: RaceTimeline }) {
           className="h-5 w-full cursor-pointer accent-emerald-400"
         />
 
-        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-          <button
-            type="button"
-            onClick={togglePlayback}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-950 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-          >
-            <span aria-hidden>{playing ? "Ⅱ" : "▶"}</span>
-            {playing ? "Pauză" : isFinal ? "Redă din nou" : "Pornește cursa"}
-          </button>
+        <div className="mt-3">
           <button
             type="button"
             onClick={restart}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300 transition hover:border-slate-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300 transition hover:border-slate-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
           >
             Reia de la început
           </button>
