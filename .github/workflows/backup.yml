@@ -12,10 +12,6 @@ name: Backup snapshot
 #   APP_URL — defaults to https://cupamondiala.andrei42.com if unset.
 
 on:
-  schedule:
-    # Every 15 minutes. GitHub may delay scheduled runs under load; backups
-    # are idempotent so an occasional late run is harmless.
-    - cron: "*/15 * * * *"
   workflow_dispatch: {} # manual "Run workflow" button
 
 jobs:
